@@ -91,19 +91,6 @@ func Example_mixed() {
 	// {"level":"info","message":"info"}
 }
 
-func ExampleTrace() {
-	// create a handler for a console log
-	clog := log.NewPlainHandler(os.Stdout, log.Lshortfile)
-	logger := log.New(clog) // инициализируем лог
-
-	var err error
-	filename := "README.md"
-	// to form the log at the beginning of the open file and at the end add in
-	// the description of the error if it happens
-	logger.WithField("file", filename).Trace("open").Stop(&err)
-	_, err = os.Open(filename)
-}
-
 func Example() {
 	log.Info("info message")
 	log.WithField("time", time.Now()).Debug("debug")
