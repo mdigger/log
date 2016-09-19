@@ -9,7 +9,7 @@ import (
 
 func TestDefault(t *testing.T) {
 	SetFlags(Lshortfile)
-	SetLevel(Level() - 1)
+	SetLevel(GetLevel() - 1)
 	Info("info message")
 	Infof("%v", "info message")
 	Error("error message")
@@ -54,7 +54,7 @@ func TestDefault(t *testing.T) {
 
 	WithError(errors.New("error")).Error("error message")
 
-	SetLevel(Level())
+	SetLevel(GetLevel())
 	SetFlags(Flags())
 	SetOutput(ioutil.Discard)
 }

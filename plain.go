@@ -26,13 +26,13 @@ var (
 	// Padding defines message padding for plain log output.
 	Padding = 28
 	// Colors mapping for plain logger.
-	Colors = map[LogLevel]int{
+	Colors = map[Level]int{
 		LevelDebug: gray,
 		LevelInfo:  blue,
 		LevelError: red,
 	}
 	// Strings mapping for plain logger
-	Strings = map[LogLevel]string{
+	Strings = map[Level]string{
 		LevelDebug: "▸",
 		LevelInfo:  "•",
 		LevelError: "⨯",
@@ -44,7 +44,7 @@ type PlainHandler struct {
 	w     io.Writer
 	flag  int
 	isTTY bool
-	level LogLevel // log entry's severity level.
+	level Level // log entry's severity level.
 	mu    sync.Mutex
 }
 
@@ -56,14 +56,14 @@ func NewPlainHandler(w io.Writer, flag int) *PlainHandler {
 }
 
 // Level returns the minimum event level that is supported by the logger.
-func (h *PlainHandler) Level() LogLevel {
+func (h *PlainHandler) Level() Level {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.level
 }
 
 // SetLevel sets the minimum event level that is supported by the logger.
-func (h *PlainHandler) SetLevel(level LogLevel) {
+func (h *PlainHandler) SetLevel(level Level) {
 	h.mu.Lock()
 	h.level = level
 	h.mu.Unlock()

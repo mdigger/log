@@ -42,7 +42,7 @@ func (c *Context) WithSource(calldepth int) *Context {
 	return c.WithField("source", getCaller(calldepth+1))
 }
 
-func (c *Context) print(level LogLevel, message string) {
+func (c *Context) print(level Level, message string) {
 	entry := entries.Get().(*Entry)
 	entry.Timestamp = time.Now()
 	entry.Level = level

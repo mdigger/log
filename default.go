@@ -85,12 +85,12 @@ func Tracef(format string, v ...interface{}) *Tracer {
 	}
 }
 
-func Level() LogLevel {
+func GetLevel() Level {
 	return plainHandler.Level()
 }
 
 // SetLevel sets the minimum event level that is supported by the logger.
-func SetLevel(level LogLevel) {
+func SetLevel(level Level) {
 	plainHandler.SetLevel(level)
 }
 

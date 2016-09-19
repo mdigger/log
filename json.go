@@ -13,7 +13,7 @@ import (
 type JSONHandler struct {
 	w     io.Writer
 	flag  int
-	level LogLevel
+	level Level
 	mu    sync.Mutex
 }
 
@@ -23,14 +23,14 @@ func NewJSONHandler(w io.Writer, flag int) *JSONHandler {
 }
 
 // Level returns the minimum event level that is supported by the logger.
-func (h *JSONHandler) Level() LogLevel {
+func (h *JSONHandler) Level() Level {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.level
 }
 
 // SetLevel sets the minimum event level that is supported by the logger.
-func (h *JSONHandler) SetLevel(level LogLevel) {
+func (h *JSONHandler) SetLevel(level Level) {
 	h.mu.Lock()
 	h.level = level
 	h.mu.Unlock()
