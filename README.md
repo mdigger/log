@@ -6,31 +6,33 @@
 
 In general, this is another "bike" for logging with blackjack.
 
-	package log
+```go
+package log
 
-	import (
-		"os"
-		"time"
+import (
+	"os"
+	"time"
 
-		"github.com/mdigger/log"
-	)
+	"github.com/mdigger/log"
+)
 
-	func open(filename string) (err error) {
-		defer log.WithField("file", "~README.md").Trace("open").Stop(&err)
-		file, err := os.Open(filename)
-		if err != nil {
-			return err
-		}
-		time.Sleep(time.Second * 10)
-		file.Close()
+func open(filename string) (err error) {
+	defer log.WithField("file", "~README.md").Trace("open").Stop(&err)
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
 	}
+	time.Sleep(time.Second * 10)
+	file.Close()
+}
 
-	func main() {
-		log.Info("info message")
-		log.WithField("time", time.Now()).Debug("debug")
+func main() {
+	log.Info("info message")
+	log.WithField("time", time.Now()).Debug("debug")
 
-		err := open("README.md")
-		if err != nil {
-			// ...
-		}
+	err := open("README.md")
+	if err != nil {
+		// ...
 	}
+}
+```
