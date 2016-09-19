@@ -64,9 +64,9 @@ func Errorf(format string, v ...interface{}) {
 
 // Trace returns a new entry with a Stop method to fire off a corresponding
 // completion log, useful with defer.
-func Trace(message string) *Tracer {
+func Trace(message string) *TraceContext {
 	std.print(InfoLevel, message)
-	return &Tracer{
+	return &TraceContext{
 		Message: message,
 		context: std.Context,
 		started: time.Now(),
@@ -75,10 +75,10 @@ func Trace(message string) *Tracer {
 
 // Tracef outputs to the console information about the beginning of the trace
 // and returns the trace context to further it is stopped by Stop method.
-func Tracef(format string, v ...interface{}) *Tracer {
+func Tracef(format string, v ...interface{}) *TraceContext {
 	message := fmt.Sprintf(format, v...)
 	std.print(InfoLevel, message)
-	return &Tracer{
+	return &TraceContext{
 		Message: message,
 		context: std.Context,
 		started: time.Now(),
