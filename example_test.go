@@ -109,6 +109,9 @@ func Example() {
 	log.WithField("time", time.Now()).Debug("debug")
 
 	var err error
-	defer log.WithField("file", "~README.md").Trace("open").Stop(&err)
-	_, err = os.Open("~README.md")
+	filename := "README.md"
+	// to form the log at the beginning of the open file and at the end add in
+	// the description of the error if it happens
+	defer log.WithField("file", filename).Trace("open").Stop(&err)
+	_, err = os.Open(filename)
 }
