@@ -9,6 +9,7 @@ import (
 
 func TestDefault(t *testing.T) {
 	SetFlags(Lshortfile)
+	SetLevel(Level() - 1)
 	Info("info message")
 	Infof("%v", "info message")
 	Error("error message")
