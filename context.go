@@ -55,30 +55,30 @@ func (c *Context) print(level Level, message string) {
 
 // Debug displays the debug message in the log.
 func (c *Context) Debug(message string) {
-	c.print(LevelDebug, message)
+	c.print(LDebug, message)
 }
 
 // Debugf displays the debug formatted message in the log.
 func (c *Context) Debugf(format string, v ...interface{}) {
-	c.print(LevelDebug, fmt.Sprintf(format, v...))
+	c.print(LDebug, fmt.Sprintf(format, v...))
 }
 
 // Info displays the message in the log.
 func (c *Context) Info(message string) {
-	c.print(LevelInfo, message)
+	c.print(LInfo, message)
 }
 
 // Infof displays the formatted message in the log.
 func (c *Context) Infof(format string, v ...interface{}) {
-	c.print(LevelInfo, fmt.Sprintf(format, v...))
+	c.print(LInfo, fmt.Sprintf(format, v...))
 }
 
 // Error displays the error message in the log.
 func (c *Context) Error(message string) {
-	c.print(LevelError, message)
+	c.print(LError, message)
 }
 
 // Error displays the formatted error message in the log.
 func (c *Context) Errorf(format string, v ...interface{}) {
-	c.print(LevelError, fmt.Sprintf(format, v...))
+	c.print(LError, fmt.Sprintf(format, v...))
 }

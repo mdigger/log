@@ -8,7 +8,7 @@ import (
 
 func TestTrace(t *testing.T) {
 	h := NewPlainHandler(os.Stdout, Lshortfile)
-	h.SetLevel(LevelDebug)
+	h.SetLevel(LDebug)
 	log := New(h)
 
 	open := func(filename string) (err error) {

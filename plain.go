@@ -27,15 +27,15 @@ var (
 	Padding = 28
 	// Colors mapping for plain logger.
 	Colors = map[Level]int{
-		LevelDebug: gray,
-		LevelInfo:  blue,
-		LevelError: red,
+		LDebug: gray,
+		LInfo:  blue,
+		LError: red,
 	}
 	// Strings mapping for plain logger
 	Strings = map[Level]string{
-		LevelDebug: "▸",
-		LevelInfo:  "•",
-		LevelError: "⨯",
+		LDebug: "▸",
+		LInfo:  "•",
+		LError: "⨯",
 	}
 )
 
@@ -136,7 +136,7 @@ func (h *PlainHandler) Handle(e *Entry) error {
 	var prefix string
 	if h.isTTY {
 		fmt.Fprintf(buf, "\033[%dm%s\033[0m ", Colors[e.Level], Strings[e.Level])
-	} else if e.Level != LevelInfo {
+	} else if e.Level != LInfo {
 		prefix = fmt.Sprintf("%s: ", e.Level.String())
 		buf.WriteString(prefix)
 	}

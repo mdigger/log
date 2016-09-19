@@ -9,7 +9,7 @@ func TestPlainHandler(t *testing.T) {
 	h := NewPlainHandler(os.Stdout, LstdFlags)
 	h.SetFlags(h.Flags() | Lshortfile)
 	h.Level()
-	h.SetLevel(LevelDebug)
+	h.SetLevel(LDebug)
 	h.SetOutput(os.Stdout)
 
 	log := New(h)

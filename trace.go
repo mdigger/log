@@ -18,16 +18,16 @@ type Tracer struct {
 func (t *Tracer) Stop(err *error) {
 	context := t.context.WithField("duration", time.Since(t.started))
 	if err == nil || *err == nil {
-		context.print(LevelInfo, t.Message)
+		context.print(LInfo, t.Message)
 	} else {
-		context.WithError(*err).print(LevelError, t.Message)
+		context.WithError(*err).print(LError, t.Message)
 	}
 }
 
 // Trace returns a new entry with a Stop method to fire off a corresponding
 // completion log, useful with defer.
 func (c *Context) Trace(message string) *Tracer {
-	c.print(LevelInfo, message)
+	c.print(LInfo, message)
 	return &Tracer{
 		Message: message,
 		context: c,
@@ -39,7 +39,7 @@ func (c *Context) Trace(message string) *Tracer {
 // and returns the trace context to further it is stopped by Stop method.
 func (c *Context) Tracef(format string, v ...interface{}) *Tracer {
 	message := fmt.Sprintf(format, v...)
-	c.print(LevelInfo, message)
+	c.print(LInfo, message)
 	return &Tracer{
 		Message: message,
 		context: c,
