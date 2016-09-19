@@ -33,10 +33,10 @@ func (c *Caller) MarshalText() ([]byte, error) {
 	return []byte(c.String()), nil
 }
 
-// getCaller calls the function get the name of the file and line of source code
-// that generated this feature. As the parameter indicates the depth in the
-// stack.
-func getCaller(calldepth int) *Caller {
+// MakeCaller calls the function get the name of the file and line of source
+// code that generated this feature. As the parameter indicates the depth in
+// the stack.
+func MakeCaller(calldepth int) *Caller {
 	_, file, line, _ := runtime.Caller(1 + calldepth)
 	return &Caller{
 		File: file,
