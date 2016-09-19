@@ -22,7 +22,7 @@ func (l Level) MarshalText() ([]byte, error) {
 
 // Predefined log severity levels.
 const (
-	LDebug Level = -1 // debug level
-	LInfo  Level = 0  // default severity level
-	LError Level = 1  // error level
+	DebugLevel Level = -1 // debug level
+	InfoLevel  Level = 0  // default severity level
+	ErrorLevel Level = 1  // error level
 )

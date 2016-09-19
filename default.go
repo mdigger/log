@@ -34,38 +34,38 @@ func WithSource(calldepth int) *Context {
 
 // Debug displays the debug message in the log.
 func Debug(message string) {
-	std.print(LDebug, message)
+	std.print(DebugLevel, message)
 }
 
 // Debugf displays the debug formatted message in the log.
 func Debugf(format string, v ...interface{}) {
-	std.print(LDebug, fmt.Sprintf(format, v...))
+	std.print(DebugLevel, fmt.Sprintf(format, v...))
 }
 
 // Info displays the message in the log.
 func Info(message string) {
-	std.print(LInfo, message)
+	std.print(InfoLevel, message)
 }
 
 // Infof displays the formatted message in the log.
 func Infof(format string, v ...interface{}) {
-	std.print(LInfo, fmt.Sprintf(format, v...))
+	std.print(InfoLevel, fmt.Sprintf(format, v...))
 }
 
 // Error displays the error message in the log.
 func Error(message string) {
-	std.print(LError, message)
+	std.print(ErrorLevel, message)
 }
 
 // Error displays the formatted error message in the log.
 func Errorf(format string, v ...interface{}) {
-	std.print(LError, fmt.Sprintf(format, v...))
+	std.print(ErrorLevel, fmt.Sprintf(format, v...))
 }
 
 // Trace returns a new entry with a Stop method to fire off a corresponding
 // completion log, useful with defer.
 func Trace(message string) *Tracer {
-	std.print(LInfo, message)
+	std.print(InfoLevel, message)
 	return &Tracer{
 		Message: message,
 		context: std.Context,
@@ -77,7 +77,7 @@ func Trace(message string) *Tracer {
 // and returns the trace context to further it is stopped by Stop method.
 func Tracef(format string, v ...interface{}) *Tracer {
 	message := fmt.Sprintf(format, v...)
-	std.print(LInfo, message)
+	std.print(InfoLevel, message)
 	return &Tracer{
 		Message: message,
 		context: std.Context,

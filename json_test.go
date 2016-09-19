@@ -9,7 +9,7 @@ func TestJSONHandler(t *testing.T) {
 	h := NewJSONHandler(os.Stderr, LstdFlags)
 	h.SetFlags(h.Flags() | Lshortfile | Lindent | LUTC)
 	h.Level()
-	h.SetLevel(LDebug)
+	h.SetLevel(DebugLevel)
 	h.SetOutput(os.Stdout)
 	log := New(h)
 

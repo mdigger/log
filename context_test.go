@@ -8,7 +8,7 @@ import (
 
 func TestContext(t *testing.T) {
 	h := NewPlainHandler(os.Stdout, Lshortfile)
-	h.SetLevel(LDebug)
+	h.SetLevel(DebugLevel)
 	log := New(h)
 
 	log.Info("info message")
