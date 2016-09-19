@@ -33,5 +33,4 @@ In general, this is another "bike" for logging with blackjack.
 		if err != nil {
 			// ...
 		}
-		// ,,,
 	}
