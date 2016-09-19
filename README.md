@@ -12,7 +12,7 @@ In general, this is another "bike" for logging with blackjack.
 		"os"
 		"time"
 
-		"github.com/apex/log"
+		"github.com/mdigger/log"
 	)
 
 	func open(filename string) (err error) {
