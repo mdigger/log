@@ -19,4 +19,6 @@ func TestJSONHandler(t *testing.T) {
 	entry.WithField("key2", "value2").Info("info message")
 	entry.WithSource(0).Info("message with source")
 	log.WithSource(0).Info("message with source")
+	log.Debug("message")
+	log.Debugf("%v", "message")
 }
