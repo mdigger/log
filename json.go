@@ -4,80 +4,109 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"time"
 )
 
-// JSONHandler описывает обработчик лога в формате JSON.
+// JSONHandler describes the handler for logging to plain text.
 type JSONHandler struct {
-	flag int // properties
-	w    io.Writer
-	mu   sync.Mutex
+	w     io.Writer
+	flag  int
+	level LogLevel
+	mu    sync.Mutex
 }
 
-// New возвращает новый инициализированный обработчик лога в формате JSON.
+// NewJSONHandler creates a new JSON logger Handler.
 func NewJSONHandler(w io.Writer, flag int) *JSONHandler {
-	if w == nil {
-		w = os.Stderr
-	}
 	return &JSONHandler{w: w, flag: flag}
 }
 
+// Level returns the minimum event level that is supported by the logger.
+func (h *JSONHandler) Level() LogLevel {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.level
+}
+
+// SetLevel sets the minimum event level that is supported by the logger.
+func (h *JSONHandler) SetLevel(level LogLevel) {
+	h.mu.Lock()
+	h.level = level
+	h.mu.Unlock()
+}
+
+// Flags returns the output flags for the logger.
+func (h *JSONHandler) Flags() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.flag
+}
+
+// SetFlags sets the output flags for the logger.
 func (h *JSONHandler) SetFlags(flag int) {
 	h.mu.Lock()
 	h.flag = flag
 	h.mu.Unlock()
 }
 
-// Handle обеспечивает вывод записи в формате JSON.
-func (h *JSONHandler) Handle(e *Entry) error {
-	now := time.Now() // делаем это как можно раньше
+// SetOutput sets the output destination for the logger.
+func (h *JSONHandler) SetOutput(w io.Writer) {
 	h.mu.Lock()
-	// добавляем имя файла и номер строки исходного кода, если требуется
-	if h.flag&(Llongfile|Lshortfile) != 0 {
-		if _, file, line, ok := runtime.Caller(3); ok {
-			if h.flag&Lshortfile != 0 {
-				file = filepath.Base(file)
-			}
-			e.WithField("source", fmt.Sprintf("%s:%d", file, line))
-		}
+	h.w = w
+	h.mu.Unlock()
+}
+
+// Handle implements Handler.
+func (h *JSONHandler) Handle(e *Entry) error {
+	h.mu.Lock()
+	if e.Level < h.level {
+		h.mu.Unlock()
+		return nil
 	}
+	var jsonEntry = &struct {
+		Timestamp string `json:"timestamp,omitempty"`
+		*Entry
+		Source string `json:"source,omitempty"`
+	}{
+		Entry: e,
+	}
+
+	timestamp := e.Timestamp
 	if h.flag&LUTC != 0 {
-		now = now.UTC()
+		timestamp = timestamp.UTC()
 	}
-	var timestamp string
 	switch h.flag & (Ldate | Ltime | Lmicroseconds) {
 	case Ldate | Ltime | Lmicroseconds, Ldate | Lmicroseconds:
-		timestamp = time.RFC3339Nano
+		jsonEntry.Timestamp = timestamp.Format(time.RFC3339Nano)
 	case Ldate | Ltime:
-		timestamp = time.RFC3339
+		jsonEntry.Timestamp = timestamp.Format(time.RFC3339)
 	case Ltime | Lmicroseconds, Lmicroseconds:
-		timestamp = "15:04:05.999999999"
+		jsonEntry.Timestamp = timestamp.Format("15:04:05.999999999")
 	case Ltime:
-		timestamp = "15:04:05" //Z07:00"
+		jsonEntry.Timestamp = timestamp.Format("15:04:05")
 	case Ldate:
-		timestamp = "2006-01-02"
+		jsonEntry.Timestamp = timestamp.Format("2006-01-02")
 	}
-	// инициализируем кодировщик в формат JSON
+
+	if h.flag&(Llongfile|Lshortfile) != 0 {
+		if e.Source == nil {
+			h.mu.Unlock()
+			e.Source = getCaller(4)
+			h.mu.Lock()
+		}
+		var file = e.Source.File
+		if h.flag&Lshortfile != 0 {
+			file = filepath.Base(file)
+		}
+		jsonEntry.Source = fmt.Sprintf("%s:%d", file, e.Source.Line)
+	}
+
 	enc := json.NewEncoder(h.w)
 	if h.flag&Lindent != 0 {
 		enc.SetIndent("", "  ")
 	}
-	// выводим дату и время, если требуется
-	var err error
-	if timestamp != "" {
-		timestamp = now.Format(timestamp)
-		// записываем в лог
-		err = enc.Encode(struct {
-			Timestamp string `json:"timestamp"`
-			*Entry
-		}{timestamp, e})
-	} else {
-		err = enc.Encode(e) // не требуется даты и время
-	}
+	err := enc.Encode(jsonEntry)
 	h.mu.Unlock()
 	return err
 }

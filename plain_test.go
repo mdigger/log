@@ -5,18 +5,21 @@ import (
 	"testing"
 )
 
-func TestJSONHandler(t *testing.T) {
-	h := NewJSONHandler(os.Stderr, LstdFlags)
-	h.SetFlags(h.Flags() | Lshortfile | Lindent | LUTC)
+func TestPlainHandler(t *testing.T) {
+	h := NewPlainHandler(os.Stdout, LstdFlags)
+	h.SetFlags(h.Flags() | Lshortfile)
 	h.Level()
 	h.SetLevel(LevelDebug)
 	h.SetOutput(os.Stdout)
+
 	log := New(h)
 
 	log.Info("info message")
 	entry := log.WithField("key", "value")
 	entry.Info("info message")
-	entry.WithField("key2", "value2").Info("info message")
+	entry.WithField("key 2", "value 2").Info("info message")
 	entry.WithSource(0).Info("message with source")
 	log.WithSource(0).Info("message with source")
+	log.Error("error message")
+	log.Debug("debug message")
 }
