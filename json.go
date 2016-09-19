@@ -92,7 +92,7 @@ func (h *JSONHandler) Handle(e *Entry) error {
 	if h.flag&(Llongfile|Lshortfile) != 0 {
 		if e.Source == nil {
 			h.mu.Unlock()
-			e.Source = getCaller(4)
+			e.Source = MakeCaller(4)
 			h.mu.Lock()
 		}
 		var file = e.Source.File

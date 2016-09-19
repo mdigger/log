@@ -39,7 +39,7 @@ func (c *Context) WithError(err error) *Context {
 
 // WithError creates a new context for logging, adding the caller source field.
 func (c *Context) WithSource(calldepth int) *Context {
-	return c.WithField("source", getCaller(calldepth+1))
+	return c.WithField("source", MakeCaller(calldepth+1))
 }
 
 func (c *Context) print(level Level, message string) {
