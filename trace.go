@@ -24,6 +24,25 @@ func (t *TraceContext) Stop(err *error) {
 	}
 }
 
+func (t *TraceContext) AddField(name string, value interface{}) *TraceContext {
+	if t.context.fields == nil {
+		t.context.fields = make(Fields, 1)
+	}
+	t.context.fields[name] = value
+	return t
+}
+
+func (t *TraceContext) AddFields(fields Fields) *TraceContext {
+	if t.context.fields == nil {
+		t.context.fields = fields
+	} else {
+		for name, value := range fields {
+			t.context.fields[name] = value
+		}
+	}
+	return t
+}
+
 // Trace returns a new entry with a Stop method to fire off a corresponding
 // completion log, useful with defer.
 func (c *Context) Trace(message string) *TraceContext {
