@@ -24,5 +24,8 @@ func TestTrace(t *testing.T) {
 	for _, filename := range []string{"~README.md", "trace_test.go"} {
 		open(filename)
 	}
-	log.Tracef("%v", "tracef").Stop(nil)
+	log.Tracef("%v", "tracef").
+		AddFields(Fields{"int": 8}).
+		AddField("bool", true).
+		Stop(nil)
 }
