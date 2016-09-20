@@ -24,6 +24,7 @@ func (t *TraceContext) Stop(err *error) {
 	}
 }
 
+// AddField adds a new field to the context trace.
 func (t *TraceContext) AddField(name string, value interface{}) *TraceContext {
 	if t.context.fields == nil {
 		t.context.fields = make(Fields, 1)
@@ -32,6 +33,7 @@ func (t *TraceContext) AddField(name string, value interface{}) *TraceContext {
 	return t
 }
 
+// // AddField adds new fields to the context trace.
 func (t *TraceContext) AddFields(fields Fields) *TraceContext {
 	if t.context.fields == nil {
 		t.context.fields = fields
