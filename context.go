@@ -15,6 +15,27 @@ type Context struct {
 	logger *Logger
 }
 
+// AddField adds a new field to the context.
+func (c *Context) AddField(name string, value interface{}) *Context {
+	if c.fields == nil {
+		c.fields = make(Fields, 1)
+	}
+	c.fields[name] = value
+	return c
+}
+
+// // AddFields adds new fields to the context.
+func (c *Context) AddFields(fields Fields) *Context {
+	if c.fields == nil {
+		c.fields = fields
+	} else {
+		for name, value := range fields {
+			c.fields[name] = value
+		}
+	}
+	return c
+}
+
 // WithFields creates a new context for logging, adding a new field list.
 func (c *Context) WithFields(fields Fields) *Context {
 	for name, value := range c.fields {
