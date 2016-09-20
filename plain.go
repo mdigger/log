@@ -147,7 +147,9 @@ func (h *PlainHandler) Handle(e *Entry) error {
 			buf.WriteString(strings.Repeat(" ", ml))
 		}
 		quote := func(str string) {
-			if strings.ContainsAny(str, " \t\r\n\"=:") {
+			if str == "" {
+				buf.WriteString(`""`)
+			} else if strings.ContainsAny(str, " \t\r\n\"=:") {
 				fmt.Fprintf(buf, "%q", str)
 			} else {
 				buf.WriteString(str)
