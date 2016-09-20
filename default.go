@@ -27,7 +27,7 @@ func WithError(err error) *Context {
 	return std.WithError(err)
 }
 
-// WithError creates a new context for logging, adding the caller source field.
+// WithSource creates a new context for logging, adding the caller source field.
 func WithSource(calldepth int) *Context {
 	return std.WithSource(calldepth)
 }
@@ -57,7 +57,7 @@ func Error(message string) {
 	std.print(ErrorLevel, message)
 }
 
-// Error displays the formatted error message in the log.
+// Errorf displays the formatted error message in the log.
 func Errorf(format string, v ...interface{}) {
 	std.print(ErrorLevel, fmt.Sprintf(format, v...))
 }
@@ -85,6 +85,7 @@ func Tracef(format string, v ...interface{}) *TraceContext {
 	}
 }
 
+// GetLevel return current log level.
 func GetLevel() Level {
 	return plainHandler.Level()
 }

@@ -58,7 +58,7 @@ func (c *Context) WithError(err error) *Context {
 	return c.WithField("error", err)
 }
 
-// WithError creates a new context for logging, adding the caller source field.
+// WithSource creates a new context for logging, adding the caller source field.
 func (c *Context) WithSource(calldepth int) *Context {
 	return c.WithField("source", MakeCaller(calldepth+1))
 }
@@ -99,7 +99,7 @@ func (c *Context) Error(message string) {
 	c.print(ErrorLevel, message)
 }
 
-// Error displays the formatted error message in the log.
+// Errorf displays the formatted error message in the log.
 func (c *Context) Errorf(format string, v ...interface{}) {
 	c.print(ErrorLevel, fmt.Sprintf(format, v...))
 }
