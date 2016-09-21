@@ -9,7 +9,7 @@ import (
 
 func Example_console() {
 	// new log output to the console
-	logger := log.New(log.NewPlainHandler(os.Stdout, log.Lshortfile))
+	logger := log.New(log.NewPlainHandler(os.Stdout, 0))
 
 	logger.Info("info test")
 	logger.Infof("info %v", "test")
@@ -28,18 +28,16 @@ func Example_console() {
 	}).Info("test")
 
 	// to be added to the file name and line number of the source code
-	logger.WithSource(0).Info("info test")
 	logger.WithField("key", "value").WithSource(0).Info("test")
 
 	// Output:
-	// example_test.go:14 info test
-	// example_test.go:15 info test
-	// example_test.go:17 error: error test
-	// example_test.go:18 error: error test
-	// example_test.go:24 test key=value
-	// example_test.go:28 test key=value key2=value2
-	// example_test.go:31 info test source="example_test.go:31"
-	// example_test.go:32 test key=value source="example_test.go:32"
+	// info test
+	// info test
+	// error: error test
+	// error: error test
+	// test                         key=value
+	// test                         key=value key2=value2
+	// test                         key=value source="example_test.go:31"
 }
 
 func Example_json() {
@@ -62,7 +60,6 @@ func Example_json() {
 	}).Info("test")
 
 	// to be added to the file name and line number of the source code
-	logger.WithSource(0).Info("info test")
 	logger.WithField("key", "value").WithSource(0).Info("test")
 
 	// Output:
@@ -72,13 +69,12 @@ func Example_json() {
 	// {"level":"error","message":"error test"}
 	// {"level":"info","message":"test","fields":{"key":"value"}}
 	// {"level":"info","message":"test","fields":{"key":"value","key2":"value2"}}
-	// {"level":"info","message":"info test","fields":{"source":"example_test.go:65"}}
-	// {"level":"info","message":"test","fields":{"key":"value","source":"example_test.go:66"}}
+	// {"level":"info","message":"test","fields":{"key":"value","source":"example_test.go:63"}}
 }
 
 func Example_mixed() {
 	// new log output to the console
-	clog := log.NewPlainHandler(os.Stdout, log.Lshortfile)
+	clog := log.NewPlainHandler(os.Stdout, 0)
 	// new log output to the console in JSON format
 	json := log.NewJSONHandler(os.Stdout, 0)
 	json.SetFlags(0)
@@ -87,7 +83,7 @@ func Example_mixed() {
 	logger.Info("info")
 
 	// Output:
-	// example_test.go:87 info
+	// info
 	// {"level":"info","message":"info"}
 }
 

@@ -7,9 +7,8 @@ import (
 
 func TestFlags(t *testing.T) {
 	hp := NewPlainHandler(os.Stdout, 0)
-	log := New(hp)
 	hj := NewJSONHandler(os.Stdout, 0)
-	log.AddHandler(hj)
+	log := New(hp, hj)
 	for _, flag := range []int{
 		Ldate,
 		Ltime,

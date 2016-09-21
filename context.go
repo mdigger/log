@@ -12,7 +12,7 @@ type Fields map[string]interface{}
 // Context describes context information for logging.
 type Context struct {
 	fields Fields
-	logger *Logger
+	logger *logger
 }
 
 // AddField adds a new field to the context.
@@ -24,7 +24,7 @@ func (c *Context) AddField(name string, value interface{}) *Context {
 	return c
 }
 
-// // AddFields adds new fields to the context.
+// AddFields adds new fields to the context.
 func (c *Context) AddFields(fields Fields) *Context {
 	if c.fields == nil {
 		c.fields = fields
