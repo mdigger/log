@@ -55,6 +55,9 @@ func (c *Context) WithField(name string, value interface{}) *Context {
 
 // WithError creates a new context for logging, adding the error field.
 func (c *Context) WithError(err error) *Context {
+	if err == nil {
+		return c
+	}
 	return c.WithField("error", err)
 }
 
