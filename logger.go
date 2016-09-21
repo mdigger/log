@@ -2,6 +2,21 @@ package log
 
 import "sync"
 
+// type Logger interface {
+// 	WithFields(fields Fields) *Context
+// 	WithField(name string, value interface{}) *Context
+// 	WithError(err error) *Context
+// 	WithSource(calldepth int) *Context
+// 	Debug(message string)
+// 	Debugf(format string, v ...interface{})
+// 	Info(message string)
+// 	Infof(format string, v ...interface{})
+// 	Error(message string)
+// 	Errorf(format string, v ...interface{})
+// 	Trace(message string) *TraceContext
+// 	Tracef(format string, v ...interface{}) *TraceContext
+// }
+
 // Logger represents a logger with configurable level and handlers.
 type Logger struct {
 	*Context           // empty log context
