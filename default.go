@@ -45,6 +45,10 @@ func AddHandler(handlers ...Handler) {
 	log.AddHandler(handlers...)
 }
 
+func Default() *Context {
+	return log.Context
+}
+
 // WithFields creates a new context for logging, adding a new field list.
 func WithFields(fields Fields) *Context {
 	return log.WithFields(fields)
