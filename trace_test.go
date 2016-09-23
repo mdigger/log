@@ -3,29 +3,50 @@ package log
 import (
 	"os"
 	"testing"
-	"time"
 )
 
 func TestTrace(t *testing.T) {
-	h := NewPlainHandler(os.Stdout, Lshortfile)
-	h.SetLevel(DebugLevel)
-	log := New(h)
-
 	open := func(filename string) (err error) {
-		defer log.WithField("file", filename).Trace("open").Stop(&err)
+		defer Tracef("trace: %v", filename).Stop(&err)
 		file, err := os.Open(filename)
-		if err == nil {
-			time.Sleep(time.Second)
-			file.Close()
+		if err != nil {
+			return err
 		}
-		return err
+		file.Close()
+		return nil
+	}
+	open2 := func(filename string) (err error) {
+		defer Trace("open file").WithFields(Fields{"test": true}).Stop(&err)
+		file, err := os.Open(filename)
+		if err != nil {
+			return err
+		}
+		file.Close()
+		return nil
+	}
+	open3 := func(filename string) (err error) {
+		defer WithField("file", filename).Trace("open").Stop(&err)
+		file, err := os.Open(filename)
+		if err != nil {
+			return err
+		}
+		file.Close()
+		return nil
+	}
+	open4 := func(filename string) (err error) {
+		defer WithField("file", filename).Tracef("open %v", filename).Stop(&err)
+		file, err := os.Open(filename)
+		if err != nil {
+			return err
+		}
+		file.Close()
+		return nil
 	}
 
-	for _, filename := range []string{"~README.md", "trace_test.go"} {
-		open(filename)
+	for _, name := range []string{"trace_test.go", "bad_file.txt"} {
+		_ = open(name)
+		_ = open2(name)
+		_ = open3(name)
+		_ = open4(name)
 	}
-	log.Tracef("%v", "tracef").
-		AddFields(Fields{"int": 8}).
-		AddField("bool", true).
-		Stop(nil)
 }

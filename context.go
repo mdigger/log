@@ -5,104 +5,101 @@ import (
 	"time"
 )
 
-// Fields describes the format of named values used to populate the context of
-// the log record.
-type Fields map[string]interface{}
-
-// Context describes context information for logging.
+// A Context represents an active logging object that generates lines of output
+// to an Handler.
 type Context struct {
-	fields Fields
-	logger *logger
+	Fields  Fields
+	handler Handler
 }
 
-// AddField adds a new field to the context.
-func (c *Context) AddField(name string, value interface{}) *Context {
-	if c.fields == nil {
-		c.fields = make(Fields, 1)
+// NewContext returns a new context initialized to specified processors with
+// specified fields.
+func NewContext(h Handler, fields Fields) *Context {
+	return &Context{
+		Fields:  fields,
+		handler: h,
 	}
-	c.fields[name] = value
-	return c
 }
 
-// AddFields adds new fields to the context.
-func (c *Context) AddFields(fields Fields) *Context {
-	if c.fields == nil {
-		c.fields = fields
-	} else {
-		for name, value := range fields {
-			c.fields[name] = value
-		}
-	}
-	return c
+func (c *Context) newContext(fields Fields) *Context {
+	return NewContext(c.handler, fields)
 }
 
-// WithFields creates a new context for logging, adding a new field list.
+// WithFields returns a new Context with added fields.
 func (c *Context) WithFields(fields Fields) *Context {
-	for name, value := range c.fields {
-		if _, ok := fields[name]; !ok {
-			fields[name] = value
-		}
-	}
-	return &Context{fields: fields, logger: c.logger}
+	return c.newContext(c.Fields.WithFields(fields))
 }
 
-// WithField creates a new context for logging, adding the new named field.
+// WithField returns a new Context with added the named field.
 func (c *Context) WithField(name string, value interface{}) *Context {
-	fields := make(Fields, len(c.fields)+1)
-	fields[name] = value
-	return c.WithFields(fields)
+	return c.newContext(c.Fields.WithField(name, value))
 }
 
-// WithError creates a new context for logging, adding the error field.
+// WithError returns a new Context with added field "error" contains the error
+// description.
 func (c *Context) WithError(err error) *Context {
 	if err == nil {
 		return c
 	}
-	return c.WithField("error", err)
+	return c.newContext(c.Fields.WithError(err))
 }
 
-// WithSource creates a new context for logging, adding the caller source field.
+// WithSource return new Context with added information about the file name and
+// line number of the source code. Calldepth is the count of the number of
+// frames to skip when computing the file name and line number. A value of 0
+// will print the details for the caller.
 func (c *Context) WithSource(calldepth int) *Context {
-	return c.WithField("source", MakeCaller(calldepth+1))
+	return c.newContext(c.Fields.WithSource(calldepth + 1))
 }
 
-func (c *Context) print(level Level, message string) {
+func (c *Context) print(level Level, message string) error {
 	entry := entries.Get().(*Entry)
 	entry.Timestamp = time.Now()
 	entry.Level = level
 	entry.Message = message
-	entry.Fields = c.fields
+	entry.Fields = c.Fields
 	entry.Source = nil
-	c.logger.handle(entry)
+	err := c.handler.Handle(entry)
 	entries.Put(entry)
+	return err
 }
 
-// Debug displays the debug message in the log.
-func (c *Context) Debug(message string) {
-	c.print(DebugLevel, message)
+// Info publishes the informational message to the log.
+func (c *Context) Info(message string) error {
+	return c.print(InfoLevel, message)
 }
 
-// Debugf displays the debug formatted message in the log.
-func (c *Context) Debugf(format string, v ...interface{}) {
-	c.print(DebugLevel, fmt.Sprintf(format, v...))
+// Infof publishes the formatted informational message to the log.
+func (c *Context) Infof(format string, v ...interface{}) error {
+	return c.print(InfoLevel, fmt.Sprintf(format, v...))
 }
 
-// Info displays the message in the log.
-func (c *Context) Info(message string) {
-	c.print(InfoLevel, message)
+// Debug publishes the debug message to the log.
+func (c *Context) Debug(message string) error {
+	return c.print(DebugLevel, message)
 }
 
-// Infof displays the formatted message in the log.
-func (c *Context) Infof(format string, v ...interface{}) {
-	c.print(InfoLevel, fmt.Sprintf(format, v...))
+// Debugf publishes the formatted debug message to the log.
+func (c *Context) Debugf(format string, v ...interface{}) error {
+	return c.print(DebugLevel, fmt.Sprintf(format, v...))
 }
 
-// Error displays the error message in the log.
-func (c *Context) Error(message string) {
-	c.print(ErrorLevel, message)
+// Warning publishes the warning message to the log.
+func (c *Context) Warning(message string) error {
+	return c.print(WarningLevel, message)
 }
 
-// Errorf displays the formatted error message in the log.
-func (c *Context) Errorf(format string, v ...interface{}) {
-	c.print(ErrorLevel, fmt.Sprintf(format, v...))
+// Warningf publishes the formatted warning message to the log.
+func (c *Context) Warningf(format string, v ...interface{}) error {
+	return c.print(WarningLevel, fmt.Sprintf(format, v...))
+}
+
+// Error publishes the error message to the log.
+func (c *Context) Error(message string) error {
+	return c.print(ErrorLevel, message)
+}
+
+// Errorf publishes the formatted error message to the log.
+func (c *Context) Errorf(format string, v ...interface{}) error {
+	return c.print(ErrorLevel, fmt.Sprintf(format, v...))
 }

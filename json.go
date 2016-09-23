@@ -5,65 +5,37 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"sync"
 	"time"
 )
 
-// JSONHandler describes the handler for logging to plain text.
-type JSONHandler struct {
-	w     io.Writer
-	flag  int
-	level Level
-	mu    sync.Mutex
+// JSON represents a JSON logger handler with configurable Level.
+type JSON struct {
+	handler
 }
 
-// NewJSONHandler creates a new JSON logger Handler.
-func NewJSONHandler(w io.Writer, flag int) *JSONHandler {
-	return &JSONHandler{w: w, flag: flag}
+// NewJSON returns a new initialized handler for the log in JSON format.
+func NewJSON(w io.Writer, flag int) *JSON {
+	var json = new(JSON)
+	json.SetOutput(w)
+	json.SetFlags(flag)
+	return json
 }
 
-// Level returns the minimum event level that is supported by the logger.
-func (h *JSONHandler) Level() Level {
+// Context returns a new Context for a JSON log.
+func (h *JSON) Context() *Context {
+	return NewContext(h, nil)
+}
+
+// Handle implements the Handler interface.
+func (h *JSON) Handle(e *Entry) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return h.level
-}
 
-// SetLevel sets the minimum event level that is supported by the logger.
-func (h *JSONHandler) SetLevel(level Level) {
-	h.mu.Lock()
-	h.level = level
-	h.mu.Unlock()
-}
-
-// Flags returns the output flags for the logger.
-func (h *JSONHandler) Flags() int {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.flag
-}
-
-// SetFlags sets the output flags for the logger.
-func (h *JSONHandler) SetFlags(flag int) {
-	h.mu.Lock()
-	h.flag = flag
-	h.mu.Unlock()
-}
-
-// SetOutput sets the output destination for the logger.
-func (h *JSONHandler) SetOutput(w io.Writer) {
-	h.mu.Lock()
-	h.w = w
-	h.mu.Unlock()
-}
-
-// Handle implements Handler.
-func (h *JSONHandler) Handle(e *Entry) error {
-	h.mu.Lock()
-	if e.Level < h.level {
-		h.mu.Unlock()
+	if e.Level < h.level || h.w == nil {
 		return nil
 	}
+	flag := h.flag
+
 	var jsonEntry = &struct {
 		Timestamp string `json:"timestamp,omitempty"`
 		*Entry
@@ -73,30 +45,28 @@ func (h *JSONHandler) Handle(e *Entry) error {
 	}
 
 	timestamp := e.Timestamp
-	if h.flag&LUTC != 0 {
+	if flag&LUTC != 0 {
 		timestamp = timestamp.UTC()
 	}
-	switch h.flag & (Ldate | Ltime | Lmicroseconds) {
+	switch flag & (Ldate | Ltime | Lmicroseconds) {
 	case Ldate | Ltime | Lmicroseconds, Ldate | Lmicroseconds:
 		jsonEntry.Timestamp = timestamp.Format(time.RFC3339Nano)
 	case Ldate | Ltime:
 		jsonEntry.Timestamp = timestamp.Format(time.RFC3339)
 	case Ltime | Lmicroseconds, Lmicroseconds:
-		jsonEntry.Timestamp = timestamp.Format("15:04:05.999999999")
+		jsonEntry.Timestamp = timestamp.Format("15:04:05.999999")
 	case Ltime:
 		jsonEntry.Timestamp = timestamp.Format("15:04:05")
 	case Ldate:
 		jsonEntry.Timestamp = timestamp.Format("2006-01-02")
 	}
 
-	if h.flag&(Llongfile|Lshortfile) != 0 {
+	if flag&(Llongfile|Lshortfile) != 0 {
 		if e.Source == nil {
-			h.mu.Unlock()
-			e.Source = MakeCaller(4)
-			h.mu.Lock()
+			e.Source = NewSource(5)
 		}
 		var file = e.Source.File
-		if h.flag&Lshortfile != 0 {
+		if flag&Lshortfile != 0 {
 			file = filepath.Base(file)
 		}
 		jsonEntry.Source = fmt.Sprintf("%s:%d", file, e.Source.Line)
@@ -106,7 +76,5 @@ func (h *JSONHandler) Handle(e *Entry) error {
 	if h.flag&Lindent != 0 {
 		enc.SetIndent("", "  ")
 	}
-	err := enc.Encode(jsonEntry)
-	h.mu.Unlock()
-	return err
+	return enc.Encode(jsonEntry)
 }

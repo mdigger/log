@@ -1,34 +1,22 @@
 package log
 
 import (
+	"fmt"
 	"os"
 	"testing"
 )
 
 func TestFlags(t *testing.T) {
-	hp := NewPlainHandler(os.Stdout, 0)
-	hj := NewJSONHandler(os.Stdout, 0)
-	log := New(hp, hj)
-	for _, flag := range []int{
-		Ldate,
-		Ltime,
-		Lmicroseconds,
-		Llongfile,
-		Lshortfile,
-		LUTC,
-		Lindent,
-		Ldate | LUTC,
-		Ltime | LUTC,
-		Lmicroseconds | LUTC,
-		Ldate | Ltime | LUTC,
-		Ldate | Lmicroseconds | LUTC,
-		Llongfile | Lshortfile,
-	} {
-		hp.SetFlags(flag)
-		hj.SetFlags(flag)
-		entry := log.WithField("flag", flag)
-		entry.Info("info message")
-		entry.Debug("debug message")
-		entry.Error("error message")
+	json := new(JSON)
+	json.SetOutput(os.Stdout)
+	console := new(Console)
+	console.SetOutput(os.Stdout)
+	log := New(json, console)
+
+	for flag := 0; flag < Lindent<<1; flag++ {
+		json.SetFlags(flag)
+		console.SetFlags(flag)
+		log.WithField("flag", flag).Info("")
+		fmt.Println()
 	}
 }

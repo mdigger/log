@@ -1,28 +1,30 @@
 package log
 
-// Level is the log severity level.
+// Level of severity.
 type Level int8
 
-// String converts a severity level to a string.
+// String implements io.Stringer.
 func (l Level) String() string {
 	switch {
 	case l < 0:
 		return "debug"
-	case l > 0:
+	case l == 1:
+		return "warning"
+	case l > 1:
 		return "error"
 	default:
 		return "info"
 	}
 }
 
-// MarshalText return the level string for text based encoding.
+// MarshalText returns the level string.
 func (l Level) MarshalText() ([]byte, error) {
 	return []byte(l.String()), nil
 }
 
-// Predefined log severity levels.
 const (
-	DebugLevel Level = -1 // debug level
-	InfoLevel  Level = 0  // default severity level
-	ErrorLevel Level = 1  // error level
+	DebugLevel   Level = -1
+	InfoLevel    Level = 0
+	WarningLevel Level = 1
+	ErrorLevel   Level = 2
 )

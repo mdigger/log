@@ -5,56 +5,60 @@ import (
 	"time"
 )
 
-// TraceContext contains the execution context of a trace request.
+// TraceContext describes the context for the trace. Returned by the call to
+// the Trace method.
 type TraceContext struct {
 	Message string
 	context *Context
 	started time.Time
 }
 
-// Stop stops the trace request and, depending on the error, generates a new
-// entry in the log about the successful completion or error. Also in the log
-// record is added to the duration of the query.
-func (t *TraceContext) Stop(err *error) {
-	context := t.context.WithField("duration", time.Since(t.started))
-	if err == nil || *err == nil {
-		context.print(InfoLevel, t.Message)
-	} else {
-		context.WithError(*err).print(ErrorLevel, t.Message)
+// Stop should be used with Trace, to fire off the completion message. When an
+// err is passed the "error" field is set, and the log level is error.
+func (t *TraceContext) Stop(err *error) error {
+	t.WithField("duration", time.Since(t.started))
+	level := InfoLevel
+	if err != nil && *err != nil {
+		t.WithField("error", (*err).Error())
+		level = ErrorLevel
 	}
+	return t.context.print(level, t.Message)
 }
 
-// AddField adds a new field to the trace context.
-func (t *TraceContext) AddField(name string, value interface{}) *TraceContext {
-	t.context.AddField(name, value)
+// WithFields adds to the TraceContext additional fields.
+func (t *TraceContext) WithFields(fields Fields) *TraceContext {
+	t.context.Fields = t.context.Fields.WithFields(fields)
 	return t
 }
 
-// // AddFields adds new fields to the trace context.
-func (t *TraceContext) AddFields(fields Fields) *TraceContext {
-	t.context.AddFields(fields)
+// WithField adds to the TraceContext additional named field.
+func (t *TraceContext) WithField(name string, value interface{}) *TraceContext {
+	t.context.Fields = t.context.Fields.WithField(name, value)
 	return t
 }
 
-// Trace returns a new entry with a Stop method to fire off a corresponding
-// completion log, useful with defer.
-func (c *Context) Trace(message string) *TraceContext {
-	c.print(InfoLevel, message)
+func (c *Context) trace(message string) *TraceContext {
 	return &TraceContext{
 		Message: message,
-		context: c,
+		context: c.newContext(nil),
 		started: time.Now(),
 	}
 }
 
-// Tracef outputs to the console information about the beginning of the trace
-// and returns the trace context to further it is stopped by Stop method.
+// Trace sends to the log information message and returns a new TraceContext
+// with a Stop method to fire off a corresponding completion log. Useful with
+// defer.
+func (c *Context) Trace(message string) *TraceContext {
+	// do not move to the trace method to operate correctly determining Source
+	c.print(InfoLevel, message)
+	return c.trace(message)
+}
+
+// Trace sends to the log formatted information message and returns a new
+// TraceContext with a Stop method to fire off a corresponding completion log.
+// Useful with defer.
 func (c *Context) Tracef(format string, v ...interface{}) *TraceContext {
 	message := fmt.Sprintf(format, v...)
 	c.print(InfoLevel, message)
-	return &TraceContext{
-		Message: message,
-		context: c,
-		started: time.Now(),
-	}
+	return c.trace(message)
 }

@@ -1,100 +1,104 @@
 package log_test
 
 import (
+	"errors"
 	"os"
 	"time"
 
 	"github.com/mdigger/log"
 )
 
-func Example_console() {
-	// new log output to the console
-	logger := log.New(log.NewPlainHandler(os.Stdout, 0))
-
-	logger.Info("info test")
-	logger.Infof("info %v", "test")
-
-	logger.Error("error test")
-	logger.Errorf("error %v", "test")
-
-	logger.Debug("debug test")
-	logger.Debugf("debug %v", "test")
-
-	// an informational message with additional parameters
-	logger.WithField("key", "value").Info("test")
-	logger.WithFields(log.Fields{
-		"key":  "value",
-		"key2": "value2",
-	}).Info("test")
-
-	// to be added to the file name and line number of the source code
-	logger.WithField("key", "value").WithSource(0).Info("test")
-
-	// Output:
-	// info test
-	// info test
-	// error: error test
-	// error: error test
-	// test                         key=value
-	// test                         key=value key2=value2
-	// test                         key=value source="example_test.go:31"
-}
-
-func Example_json() {
-	logger := log.New(log.NewJSONHandler(os.Stdout, 0))
-
-	logger.Info("info test")
-	logger.Infof("info %v", "test")
-
-	logger.Error("error test")
-	logger.Errorf("error %v", "test")
-
-	logger.Debug("debug test")
-	logger.Debugf("debug %v", "test")
-
-	// an informational message with additional parameters
-	logger.WithField("key", "value").Info("test")
-	logger.WithFields(log.Fields{
-		"key":  "value",
-		"key2": "value2",
-	}).Info("test")
-
-	// to be added to the file name and line number of the source code
-	logger.WithField("key", "value").WithSource(0).Info("test")
-
-	// Output:
-	// {"level":"info","message":"info test"}
-	// {"level":"info","message":"info test"}
-	// {"level":"error","message":"error test"}
-	// {"level":"error","message":"error test"}
-	// {"level":"info","message":"test","fields":{"key":"value"}}
-	// {"level":"info","message":"test","fields":{"key":"value","key2":"value2"}}
-	// {"level":"info","message":"test","fields":{"key":"value","source":"example_test.go:63"}}
-}
-
-func Example_mixed() {
-	// new log output to the console
-	clog := log.NewPlainHandler(os.Stdout, 0)
-	// new log output to the console in JSON format
-	json := log.NewJSONHandler(os.Stdout, 0)
-	json.SetFlags(0)
-	// output to multiple logs in different formats
-	logger := log.New(clog, json)
-	logger.Info("info")
-
-	// Output:
-	// info
-	// {"level":"info","message":"info"}
-}
-
 func Example() {
-	log.Info("info message")
-	log.WithField("time", time.Now()).Debug("debug")
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.DebugLevel)
+	log.SetFlags(log.Lindent | log.Lshortfile)
+	log.Padding = 18
 
-	var err error
-	filename := "README.md"
-	// to form the log at the beginning of the open file and at the end add in
-	// the description of the error if it happens
+	logger := log.WithField("service", "service name")
+	logger.Debug("service started")
+	defer logger.Debug("service stoped")
+
+	ctx := logger.WithFields(log.Fields{
+		"file":     "README.md",
+		"type":     "text/markdown",
+		"temp":     true,
+		"duration": time.Second * 3,
+	})
+	ctx.Infof("info %v", "message")
+	logger.Warning("warning message")
+	logger.WithError(errors.New("error")).Error("error message")
+	// Output:
+	// example_test.go:18 ▸ service started    service="service name"
+	// example_test.go:27 • info message       duration=3s file=README.md service="service name" temp=true type="text/markdown"
+	// example_test.go:28 ⚡︎ warning message    service="service name"
+	// example_test.go:29 ⨯︎ error message      error=error service="service name"
+	// example_test.go:36 ▸ service stoped     service="service name"
+}
+
+// Errors are passed to WithError(), populating the "error" field.
+func ExampleWithError() {
+	err := errors.New("boom")
+	log.WithError(err).Error("upload failed")
+}
+
+// Multiple fields can be set, via chaining, or WithFields().
+func ExampleWithFields() {
+	log.WithFields(log.Fields{
+		"user": "Tobi",
+		"file": "sloth.png",
+		"type": "image/png",
+	}).Info("upload")
+}
+
+// Structured logging is supported with fields, and is recommended over the
+// formatted message variants.
+func ExampleWithField() {
+	log.WithField("user", "Tobo").Info("logged in")
+}
+
+// Unstructured logging is supported, but not recommended since it is hard to
+// query.
+func ExampleInfof() {
+	log.Infof("%s logged in", "Tobi")
+}
+
+const filename = "README.md"
+
+// Trace can be used to simplify logging of start and completion events, for
+// example an upload or open which may fail.
+func ExampleContext_Trace() (err error) {
 	defer log.WithField("file", filename).Trace("open").Stop(&err)
-	_, err = os.Open(filename)
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	time.Sleep(time.Second)
+	file.Close()
+	return nil
+}
+
+// Creating a log for output in several formats.
+func ExampleNew() {
+	log := log.New(
+		log.NewConsole(os.Stderr, log.LstdFlags|log.Lindent),
+		log.NewJSON(os.Stderr, log.LstdFlags),
+	)
+	log.Info("multiple output log started")
+	// Output:
+}
+
+// Creating a new console log.
+func ExampleConsole() {
+	handler := log.NewConsole(os.Stderr, log.LstdFlags|log.Lindent)
+	handler.SetLevel(log.DebugLevel)
+	log := handler.Context()
+	log.Info("log started")
+}
+
+// Creating a new JSON log.
+func ExampleJSON() {
+	handler := log.NewJSON(os.Stderr, log.LstdFlags|log.Lindent)
+	handler.SetLevel(log.DebugLevel)
+	log := handler.Context()
+	log.Info("log started")
 }

@@ -4,120 +4,110 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 )
 
-var plainHandler = NewPlainHandler(os.Stdout, LstdFlags)
+var consoleHandler = NewConsole(os.Stderr, LstdFlags|Lindent)
 
-// GetLevel return current log level.
+// GetLevel return the default log level.
 func GetLevel() Level {
-	return plainHandler.Level()
+	return consoleHandler.Level()
 }
 
 // SetLevel sets the minimum event level that is supported by the logger.
 func SetLevel(level Level) {
-	plainHandler.SetLevel(level)
+	consoleHandler.SetLevel(level)
 }
 
 // Flags returns the output flags for the logger.
 func Flags() int {
-	return plainHandler.Flags()
+	return consoleHandler.Flags()
 }
 
 // SetFlags sets the output flags for the logger.
 func SetFlags(flag int) {
-	plainHandler.SetFlags(flag)
+	consoleHandler.SetFlags(flag)
 }
 
 // SetOutput sets the output destination for the logger.
 func SetOutput(w io.Writer) {
-	plainHandler.SetOutput(w)
+	consoleHandler.SetOutput(w)
 }
 
-var log *logger
+var defaulContext = consoleHandler.Context()
 
-func init() {
-	log = &logger{handlers: []Handler{plainHandler}}
-	log.Context = &Context{logger: log}
-}
-
-func AddHandler(handlers ...Handler) {
-	log.AddHandler(handlers...)
-}
-
-func Default() *Context {
-	return log.Context
-}
-
-// WithFields creates a new context for logging, adding a new field list.
 func WithFields(fields Fields) *Context {
-	return log.WithFields(fields)
+	return defaulContext.WithFields(fields)
 }
 
-// WithField creates a new context for logging, adding the new named field.
 func WithField(name string, value interface{}) *Context {
-	return log.WithField(name, value)
+	return defaulContext.WithField(name, value)
 }
 
-// WithError creates a new context for logging, adding the error field.
 func WithError(err error) *Context {
-	return log.WithError(err)
+	return defaulContext.WithError(err)
 }
 
-// WithSource creates a new context for logging, adding the caller source field.
+// WithSource return new Context with added information about the file name and
+// line number of the source code. Calldepth is the count of the number of
+// frames to skip when computing the file name and line number. A value of 0
+// will print the details for the caller.
 func WithSource(calldepth int) *Context {
-	return log.WithSource(calldepth)
+	return defaulContext.WithSource(calldepth + 1)
 }
 
-// Debug displays the debug message in the log.
-func Debug(message string) {
-	log.print(DebugLevel, message)
+// Info publishes the informational message to the default log.
+func Info(message string) error {
+	return defaulContext.print(InfoLevel, message)
 }
 
-// Debugf displays the debug formatted message in the log.
-func Debugf(format string, v ...interface{}) {
-	log.print(DebugLevel, fmt.Sprintf(format, v...))
+// Infof publishes the formatted informational message to the default log.
+func Infof(format string, v ...interface{}) error {
+	return defaulContext.print(InfoLevel, fmt.Sprintf(format, v...))
 }
 
-// Info displays the message in the log.
-func Info(message string) {
-	log.print(InfoLevel, message)
+// Debug publishes the debug message to the default log.
+func Debug(message string) error {
+	return defaulContext.print(DebugLevel, message)
 }
 
-// Infof displays the formatted message in the log.
-func Infof(format string, v ...interface{}) {
-	log.print(InfoLevel, fmt.Sprintf(format, v...))
+// Debugf publishes the formatted debug message to the default log.
+func Debugf(format string, v ...interface{}) error {
+	return defaulContext.print(DebugLevel, fmt.Sprintf(format, v...))
 }
 
-// Error displays the error message in the log.
-func Error(message string) {
-	log.print(ErrorLevel, message)
+// Warning publishes the warning message to the default log.
+func Warning(message string) error {
+	return defaulContext.print(WarningLevel, message)
 }
 
-// Errorf displays the formatted error message in the log.
-func Errorf(format string, v ...interface{}) {
-	log.print(ErrorLevel, fmt.Sprintf(format, v...))
+// Warningf publishes the formatted warning message to the default log.
+func Warningf(format string, v ...interface{}) error {
+	return defaulContext.print(WarningLevel, fmt.Sprintf(format, v...))
 }
 
-// Trace returns a new entry with a Stop method to fire off a corresponding
-// completion log, useful with defer.
+// Error publishes the error message to the default log.
+func Error(message string) error {
+	return defaulContext.print(ErrorLevel, message)
+}
+
+// Errorf publishes the formatted error message to the default log.
+func Errorf(format string, v ...interface{}) error {
+	return defaulContext.print(ErrorLevel, fmt.Sprintf(format, v...))
+}
+
+// Trace sends to the default log information message and returns a new
+// TraceContext with a Stop method to fire off a corresponding completion log.
+// Useful with defer.
 func Trace(message string) *TraceContext {
-	log.print(InfoLevel, message)
-	return &TraceContext{
-		Message: message,
-		context: log.Context,
-		started: time.Now(),
-	}
+	defaulContext.print(InfoLevel, message)
+	return defaulContext.trace(message)
 }
 
-// Tracef outputs to the console information about the beginning of the trace
-// and returns the trace context to further it is stopped by Stop method.
+// Trace sends to the default log formatted information message and returns a
+// new TraceContext with a Stop method to fire off a corresponding completion
+// log. Useful with defer.
 func Tracef(format string, v ...interface{}) *TraceContext {
 	message := fmt.Sprintf(format, v...)
-	log.print(InfoLevel, message)
-	return &TraceContext{
-		Message: message,
-		context: log.Context,
-		started: time.Now(),
-	}
+	defaulContext.print(InfoLevel, message)
+	return defaulContext.trace(message)
 }
