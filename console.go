@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -121,14 +122,10 @@ func (h *Console) Handle(e *Entry) error {
 }
 
 func quote(str string) string {
-	switch {
-	case str == "":
-		return `""`
-	case strings.ContainsAny(str, QuoteWithChars):
-		return "\"" + str + "\""
-	default:
-		return str
+	if str == "" || strings.ContainsAny(str, QuoteWithChars) {
+		return strconv.Quote(str)
 	}
+	return str
 }
 
 // colors.
