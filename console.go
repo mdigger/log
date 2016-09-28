@@ -158,7 +158,7 @@ var (
 	}
 	// QuoteWithChars contains a list of characters that require to wrap the
 	// string in the output in quotation marks.
-	QuoteWithChars = " \t\r\n\"=:\\/"
+	QuoteWithChars = " \t\r\n\"=:\\/-"
 )
 
 // buffers pool
