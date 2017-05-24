@@ -5,6 +5,9 @@ type Fields map[string]interface{}
 
 // WithFields returns a new Fields with added fields.
 func (f Fields) WithFields(fields Fields) Fields {
+	if fields == nil {
+		return f
+	}
 	for key, value := range f {
 		if _, ok := fields[key]; !ok {
 			fields[key] = value
