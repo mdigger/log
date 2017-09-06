@@ -17,7 +17,7 @@ type TraceContext struct {
 // err is passed the "error" field is set, and the log level is error.
 func (t *TraceContext) Stop(err *error) error {
 	t.WithField("duration", time.Since(t.started))
-	level := InfoLevel
+	level := DebugLevel
 	if err != nil && *err != nil {
 		t.WithField("error", (*err).Error())
 		level = ErrorLevel
@@ -40,25 +40,25 @@ func (t *TraceContext) WithField(name string, value interface{}) *TraceContext {
 func (c *Context) trace(message string) *TraceContext {
 	return &TraceContext{
 		Message: message,
-		context: c.newContext(nil),
+		context: c.newContext(c.Fields),
 		started: time.Now(),
 	}
 }
 
-// Trace sends to the log information message and returns a new TraceContext
+// Trace sends to the log debug message and returns a new TraceContext
 // with a Stop method to fire off a corresponding completion log. Useful with
 // defer.
 func (c *Context) Trace(message string) *TraceContext {
 	// do not move to the trace method to operate correctly determining Source
-	c.print(InfoLevel, message)
+	// c.print(DebugLevel, message)
 	return c.trace(message)
 }
 
-// Trace sends to the log formatted information message and returns a new
+// Tracef sends to the log formatted debug message and returns a new
 // TraceContext with a Stop method to fire off a corresponding completion log.
 // Useful with defer.
 func (c *Context) Tracef(format string, v ...interface{}) *TraceContext {
 	message := fmt.Sprintf(format, v...)
-	c.print(InfoLevel, message)
+	// c.print(DebugLevel, message)
 	return c.trace(message)
 }
