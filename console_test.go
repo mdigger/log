@@ -2,75 +2,45 @@ package log
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
 )
 
-func TestDefault(t *testing.T) {
-	if GetLevel() > DebugLevel {
-		SetLevel(DebugLevel)
+var errTest = errors.New("test error")
+
+func TestConsole(t *testing.T) {
+	for _, h := range []StreamFormatter{new(Console), Color, JSON("  ")} {
+		err := h.Log(os.Stderr, -65, "category", "message",
+			"key1", "s",
+			"key2", 2,
+			"key3", true,
+			"key4", errTest,
+			"key5", time.Now(),
+			"key6", []string{"s1", "s2"},
+			"key7", []int{1, 2},
+			"key8", complex(12, 53),
+			"key9", []byte{'t', 'e', 's', 't'},
+			"key10", map[string]interface{}{
+				"k1": 1,
+				"k2": "2",
+				"k3": true,
+			},
+		)
+		if err != nil {
+			t.Error(err)
+		}
 	}
-	SetOutput(os.Stdout)
-	SetFlags(Flags() | Lshortfile | LUTC | Lmicroseconds)
-
-	Debug("debug")
-	Info("info")
-	Warning("warning")
-	Error("error")
-
-	Debugf("%v", "debug")
-	Infof("%v", "info")
-	Warningf("%v", "warning")
-	Errorf("%v", "error")
-
-	entry := WithField("name", "value")
-	entry.Debug("debug")
-	entry.Info("info")
-	entry.Warning("warning")
-	entry.Error("error")
-
-	entry.Debugf("%v", "debug")
-	entry.Infof("%v", "info")
-	entry.Warningf("%v", "warning")
-	entry.Errorf("%v", "error")
-
-	entry = WithFields(Fields{"name": ""})
-	entry.Debug("debug")
-	entry.Info("info")
-	entry.Warning("warning")
-	entry.Error("error")
-
-	entry = WithSource(0)
-	entry.Debug("debug")
-	entry.Info("info")
-	entry.Warning("warning")
-	entry.Error("error")
-
-	entry = WithError(errors.New("error"))
-	entry.Debug("debug")
-	entry.Info("info")
-	entry.Warning("warning")
-	entry.Error("error")
-
-	SetLevel(InfoLevel)
-	SetFlags(0)
-	WithError(nil).Debug("debug")
-	WithSource(999).Error("error")
-	WithFields(Fields{
-		"name": true,
-		"time": time.Now().Round(time.Second),
-	}).WithField("name", "value").Warning("warning")
-
-	SetOutput(nil)
-	Info("info")
 }
 
-func TestConsoleTTY(t *testing.T) {
-	h := NewConsole(ioutil.Discard, 0)
-	h.tty = true
-	h.Context().WithField("name", "value").Info("message")
-	h.tty = false
-	h.Context().WithField("name", "value").Info("message")
+func TestColor(t *testing.T) {
+	SetFormat(Color)
+	SetLevel(TRACE)
+	fields := Fields{"test": "string", "bool": true}
+	log := New("category")
+	log.Trace("trace", fields)
+	log.Debug("debug", fields)
+	log.Info("info", fields)
+	log.Error("error", fields)
+	log.Fatal("fatal", fields)
 }

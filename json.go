@@ -4,77 +4,80 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"path/filepath"
+	"sync"
 	"time"
 )
 
-// JSON represents a JSON logger handler with configurable Level.
-type JSON struct {
-	handler
-}
+// JSON отвечает за форматирование лога в формате JSON. В качестве значения
+// может быть задана строка, которая будет использоваться для отступов
+// при форматировании.
+type JSON string
 
-// NewJSON returns a new initialized handler for the log in JSON format.
-func NewJSON(w io.Writer, flag int) *JSON {
-	var json = new(JSON)
-	json.SetOutput(w)
-	json.SetFlags(flag)
-	return json
-}
+var _ StreamFormatter = new(JSON) // проверяем поддержу интерфейса
 
-// Context returns a new Context for a JSON log.
-func (h *JSON) Context() *Context {
-	return NewContext(h, nil)
-}
-
-// Handle implements the Handler interface.
-func (h *JSON) Handle(e *Entry) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if e.Level < h.level || h.w == nil {
-		return nil
+// Log осуществляет форматирование записи лога в формат JSON.
+func (f JSON) Log(w io.Writer, lvl Level, category, msg string,
+	fields ...interface{}) error {
+	var enc = json.NewEncoder(w)
+	if f != "" {
+		enc.SetIndent("", string(f))
 	}
-	flag := h.flag
-
-	var jsonEntry = &struct {
-		Timestamp string `json:"timestamp,omitempty"`
-		*Entry
-		Source string `json:"source,omitempty"`
-	}{
-		Entry: e,
-	}
-
-	timestamp := e.Timestamp
-	if flag&LUTC != 0 {
-		timestamp = timestamp.UTC()
-	}
-	switch flag & (Ldate | Ltime | Lmicroseconds) {
-	case Ldate | Ltime | Lmicroseconds, Ldate | Lmicroseconds:
-		jsonEntry.Timestamp = timestamp.Format(time.RFC3339Nano)
-	case Ldate | Ltime:
-		jsonEntry.Timestamp = timestamp.Format(time.RFC3339)
-	case Ltime | Lmicroseconds, Lmicroseconds:
-		jsonEntry.Timestamp = timestamp.Format("15:04:05.999999")
-	case Ltime:
-		jsonEntry.Timestamp = timestamp.Format("15:04:05")
-	case Ldate:
-		jsonEntry.Timestamp = timestamp.Format("2006-01-02")
-	}
-
-	if flag&(Llongfile|Lshortfile) != 0 {
-		if e.Source == nil {
-			e.Source = NewSource(5)
+	var entry = entries.Get().(*jsonEntry)
+	entry.Timestamp = time.Now().Unix()
+	entry.Level = lvl
+	entry.Category = category
+	entry.Message = msg
+	switch len(fields) {
+	case 0: // нет дополнительных полей
+		break
+	case 1: // дополнительные поля представлены одним элементом
+		if list, ok := fields[0].(map[string]interface{}); ok {
+			entry.Fields = make(map[string]json.RawMessage, len(list))
+			for name, value := range list {
+				entry.Fields[name] = fieldValue(value)
+			}
 		}
-		var file = e.Source.File
-		if flag&Lshortfile != 0 {
-			file = filepath.Base(file)
+	default:
+		entry.Fields = make(map[string]json.RawMessage, len(fields)<<1)
+		var name string
+		for i, field := range fields {
+			if i%2 == 0 {
+				if s, ok := field.(string); ok {
+					name = s
+				} else {
+					name = fmt.Sprint(name)
+				}
+			} else {
+				entry.Fields[name] = fieldValue(field)
+			}
 		}
-		jsonEntry.Source = fmt.Sprintf("%s:%d", file, e.Source.Line)
 	}
+	var err = enc.Encode(entry)
+	entries.Put(entry)
+	return err
+}
 
-	enc := json.NewEncoder(h.w)
-	if h.flag&Lindent != 0 {
-		enc.SetIndent("", "  ")
+// jsonEntry описывает структуру записи лога для записи в формате JSON.
+type jsonEntry struct {
+	Timestamp int64                      `json:"time"`
+	Level     Level                      `json:"lvl"`
+	Category  string                     `json:"category,omitempty"`
+	Message   string                     `json:"msg"`
+	Fields    map[string]json.RawMessage `json:"keys,omitempty"`
+}
+
+var entries = sync.Pool{New: func() interface{} { return new(jsonEntry) }}
+
+// fieldValue трансформирует некоторые значения в вид, удобный для JSON.
+func fieldValue(value interface{}) json.RawMessage {
+	if err, ok := value.(error); ok {
+		value = fmt.Sprintf("[%T]: %[1]s", err)
 	}
-	return enc.Encode(jsonEntry)
+repeat:
+	data, err := json.Marshal(value)
+	if err != nil {
+		value = fmt.Sprint(value)
+		goto repeat
+	}
+	return data
 }

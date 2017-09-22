@@ -1,114 +1,127 @@
 package log
 
 import (
-	"fmt"
+	"errors"
 	"io"
+	"log"
 	"os"
 )
 
-var consoleHandler = NewConsole(os.Stderr, LstdFlags|Lindent)
+// defaultHandler является предопределенным консольным обработчиком лога.
+var defaultHandler = NewStreamHandler(os.Stderr, DEBUG,
+	&Console{TimeFormat: "2006-01-02 15:04:05"})
 
-// GetLevel return the default log level.
-func GetLevel() Level {
-	return consoleHandler.Level()
+// SetLevel изменяет уровень фильтра для вывода сообщений в лог по умолчанию.
+// Изначально фильтр установлен в DEBUG.
+func SetLevel(lvl Level) {
+	defaultHandler.SetLevel(lvl)
 }
 
-// SetLevel sets the minimum event level that is supported by the logger.
-func SetLevel(level Level) {
-	consoleHandler.SetLevel(level)
-}
-
-// Flags returns the output flags for the logger.
-func Flags() int {
-	return consoleHandler.Flags()
-}
-
-// SetFlags sets the output flags for the logger.
-func SetFlags(flag int) {
-	consoleHandler.SetFlags(flag)
-}
-
-// SetOutput sets the output destination for the logger.
+// SetOutput переопределяет вывод лога по умолчанию. Изначально используется
+// os.Stderr.
 func SetOutput(w io.Writer) {
-	consoleHandler.SetOutput(w)
+	defaultHandler.SetOutput(w)
 }
 
-// Default is default console log Context.
-var Default = consoleHandler.Context()
-
-func WithFields(fields Fields) *Context {
-	return Default.WithFields(fields)
+// SetFormat переопределяет настройки формата вывода лога по умолчанию.
+// Изначально из настроек задан только формат временной метки
+// "2006-01-02 15:04:05". Все остальные настройки оставлены по умолчанию.
+func SetFormat(format StreamFormatter) {
+	defaultHandler.SetFormat(format)
 }
 
-func WithField(name string, value interface{}) *Context {
-	return Default.WithField(name, value)
+// IsTTY возвращает true, если лог выводится в терминал или в файл.
+func IsTTY() bool {
+	return defaultHandler.IsTTY()
 }
 
-func WithError(err error) *Context {
-	return Default.WithError(err)
+// New возвращает новый именованный раздел лога по умолчанию.
+func New(name string) *Logger {
+	return &Logger{h: defaultHandler, name: name}
 }
 
-// WithSource return new Context with added information about the file name and
-// line number of the source code. Calldepth is the count of the number of
-// frames to skip when computing the file name and line number. A value of 0
-// will print the details for the caller.
-func WithSource(calldepth int) *Context {
-	return Default.WithSource(calldepth + 1)
+// Log выводит сообщение с указанным уровнем в лог по умолчанию.
+func Log(lvl Level, msg string, fields ...interface{}) {
+	defaultHandler.Log(lvl, "", msg, fields...)
 }
 
-// Info publishes the informational message to the default log.
-func Info(message string) error {
-	return Default.print(InfoLevel, message)
+// Trace выводит необязательное отладочное сообщение в лог по умолчанию.
+func Trace(msg string, fields ...interface{}) {
+	defaultHandler.Log(TRACE, "", msg, fields...)
 }
 
-// Infof publishes the formatted informational message to the default log.
-func Infof(format string, v ...interface{}) error {
-	return Default.print(InfoLevel, fmt.Sprintf(format, v...))
+// Debug выводит отладочное сообщение в лог по умолчанию.
+func Debug(msg string, fields ...interface{}) {
+	defaultHandler.Log(DEBUG, "", msg, fields...)
 }
 
-// Debug publishes the debug message to the default log.
-func Debug(message string) error {
-	return Default.print(DebugLevel, message)
+// Info выводит информационное сообщение в лог по умолчанию.
+func Info(msg string, fields ...interface{}) {
+	defaultHandler.Log(INFO, "", msg, fields...)
 }
 
-// Debugf publishes the formatted debug message to the default log.
-func Debugf(format string, v ...interface{}) error {
-	return Default.print(DebugLevel, fmt.Sprintf(format, v...))
+// Warn выводит сообщение с предупреждением в лог по умолчанию. Возвращает
+// сформированную на основании текста сообщения ошибку, чтобы можно было ее
+// использовать для дальнейшей обработки.
+func Warn(msg string, fields ...interface{}) error {
+	defaultHandler.Log(WARN, "", msg, fields...)
+	return errors.New(msg)
 }
 
-// Warning publishes the warning message to the default log.
-func Warning(message string) error {
-	return Default.print(WarningLevel, message)
+// Error выводит сообщение об ошибке в лог по умолчанию. Возвращает
+// сформированную на основании текста сообщения ошибку, чтобы можно было ее
+// использовать для дальнейшей обработки.
+func Error(msg string, fields ...interface{}) error {
+	defaultHandler.Log(ERROR, "", msg, fields...)
+	return errors.New(msg)
 }
 
-// Warningf publishes the formatted warning message to the default log.
-func Warningf(format string, v ...interface{}) error {
-	return Default.print(WarningLevel, fmt.Sprintf(format, v...))
+// IfErr выводит  в лог по умолчанию сообщение об ошибке, если ошибка err не
+// пустая. При этом err автоматически добавляется как одно из дополнительных
+// свойств в fields с именем "err". Возвращает исходную ошибку err без каких
+// либо изменений.
+func IfErr(err error, msg string, fields ...interface{}) error {
+	if err != nil {
+		defaultHandler.Log(ERROR, "", msg, append(fields, "err", err)...)
+	}
+	return nil
 }
 
-// Error publishes the error message to the default log.
-func Error(message string) error {
-	return Default.print(ErrorLevel, message)
+// Fatal выводит сообщение о приоритетной ошибке в лог по умолчанию. Возвращает
+// сформированную на основании текста сообщения ошибку, чтобы можно было ее
+// использовать для дальнейшей обработки.
+func Fatal(msg string, fields ...interface{}) error {
+	defaultHandler.Log(FATAL, "", msg, fields...)
+	return errors.New(msg)
 }
 
-// Errorf publishes the formatted error message to the default log.
-func Errorf(format string, v ...interface{}) error {
-	return Default.print(ErrorLevel, fmt.Sprintf(format, v...))
+// StdLogger позволяет подменить стандартный лог на лог по умолчанию. В качестве
+// параметров задается уровень формируемых записей в лог и имя раздела лога.
+func StdLogger(lvl Level, name string) *log.Logger {
+	return newStdLog(defaultHandler, lvl, name)
 }
 
-// Trace sends to the default log information message and returns a new
-// TraceContext with a Stop method to fire off a corresponding completion log.
-// Useful with defer.
-func Trace(message string) *TraceContext {
-	Default.print(InfoLevel, message)
-	return Default.trace(message)
+// defaultLogger является предопределенным консольным логом по умолчанию.
+var defaultLogger = NewLogger(defaultHandler)
+
+// WithFields возвращает частичную запись в лог с заполненными полями. Запись
+// будет относиться к логу по умолчанию.
+func WithFields(fields Fields) *Entry {
+	return &Entry{logger: defaultLogger, fields: fields}
 }
 
-// Trace sends to the default log formatted information message and returns a
-// new TraceContext with a Stop method to fire off a corresponding completion
-// log. Useful with defer.
-func Tracef(format string, v ...interface{}) *TraceContext {
-	message := fmt.Sprintf(format, v...)
-	Default.print(InfoLevel, message)
-	return Default.trace(message)
+// WithField возвращает частичную запись в лог с заполненным именованным полем.
+// Запись будет относиться к логу по умолчанию.
+func WithField(name string, value interface{}) *Entry {
+	return &Entry{logger: defaultLogger, fields: Fields{name: value}}
+}
+
+// WithError возвращает частичную запись в лог с заполненным именованным полем
+// с ошибкой. Запись будет относиться к логу по умолчанию.
+func WithError(err error) *Entry {
+	var fields Fields
+	if err != nil {
+		fields = Fields{"err": err}
+	}
+	return &Entry{logger: defaultLogger, fields: fields}
 }
