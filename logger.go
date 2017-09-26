@@ -1,110 +1,119 @@
 package log
 
 import (
-	"errors"
 	"log"
+	"strconv"
 )
 
-// Logger описывает именованный раздел (category) для вывода в лог. По умолчанию
-// название раздела пустое.
+// Field описывает именованное поле с дополнительными данными записи в лог.
+type Field struct {
+	Name  string
+	Value interface{}
+}
+
+// Handler описывает интерфейс обработчика логов. В качестве параметров
+// передаются уровень записи, глубина вложенных вызовов для определения
+// исходного файла и строки с кодом, название категории, сообщения и список
+// дополнительных полей.
+type Handler interface {
+	Write(lvl Level, calldepth int, name, msg string, fields []Field) error
+}
+
+// Logger описывает именованный раздел лога.
 type Logger struct {
-	h    Handler // обработчик вывода в лог
-	name string  // имя категории
+	name   string  // имя раздела
+	h      Handler // обработчик лога
+	fields []Field // дополнительные поля
 }
 
-// NewLogger возвращает новый лог с заданным обработчиком.
-func NewLogger(handler Handler) *Logger {
-	return &Logger{h: handler}
+// NewLogger возвращает новый Logger для записи лога с помощью обработчика h.
+func NewLogger(h Handler) *Logger {
+	return &Logger{h: h}
 }
 
-// New возвращает новую именованную категорию для вывода в исходный лог.
-func (l *Logger) New(name string) *Logger {
-	return &Logger{h: l.h, name: name}
-}
-
-// Log выводит в лог сообщение с указанным уровнем.
-func (l *Logger) Log(lvl Level, msg string, fields ...interface{}) {
-	l.h.Log(lvl, l.name, msg, fields...)
-}
-
-// Trace выводит необязательное отладочное сообщение.
-func (l *Logger) Trace(msg string, fields ...interface{}) {
-	l.h.Log(TRACE, l.name, msg, fields...)
-}
-
-// Debug выводит отладочное сообщение.
-func (l *Logger) Debug(msg string, fields ...interface{}) {
-	l.h.Log(DEBUG, l.name, msg, fields...)
-}
-
-// Info выводит информационное сообщение.
-func (l *Logger) Info(msg string, fields ...interface{}) {
-	l.h.Log(INFO, l.name, msg, fields...)
-}
-
-// Warn выводит сообщение с предупреждением. Возвращает сформированную на
-// основании текста сообщения ошибку, чтобы можно было ее использовать
-// для дальнейшей обработки.
-func (l *Logger) Warn(msg string, fields ...interface{}) error {
-	l.h.Log(WARN, l.name, msg, fields...)
-	return errors.New(msg)
-}
-
-// Error выводит сообщение об ошибке. Возвращает сформированную на основании
-// текста сообщения ошибку, чтобы можно было ее использовать для дальнейшей
-// обработки.
-func (l *Logger) Error(msg string, fields ...interface{}) error {
-	l.h.Log(ERROR, l.name, msg, fields...)
-	return errors.New(msg)
-}
-
-// IfErr выводит в лог сообщение об ошибке, если ошибка err не пустая.
-// При этом err автоматически добавляется как одно из дополнительных
-// свойств в fields с именем "err". Возвращает исходную ошибку err без каких
-// либо изменений.
-func (l *Logger) IfErr(err error, msg string, fields ...interface{}) error {
-	if err != nil {
-		l.h.Log(ERROR, l.name, msg, append(fields, "err", err)...)
+// New возвращает новую категорию с новым именем для того же лога. Имена
+// добавляются через точку, используя предыдущее имя лога.
+func (l Logger) New(name string, fields ...interface{}) Logger {
+	if l.name != "" {
+		name = l.name + "." + name
 	}
-	return nil
+	return Logger{h: l.h, name: name, fields: l.appendFields(fields)}
 }
 
-// Fatal выводит в лок высокоприоритетное сообщение об ошибке.
-func (l *Logger) Fatal(msg string, fields ...interface{}) error {
-	l.h.Log(FATAL, l.name, msg, fields...)
-	return errors.New(msg)
+// Log записывает в лог сообщение с заданным уровнем.
+func (l Logger) Log(lvl Level, msg string, fields ...interface{}) {
+	l.h.Write(lvl, 1, l.name, msg, l.appendFields(fields))
 }
 
-// StdLog позволяет подменить стандартный лог на данный. В качестве параметров
-// задается уровень формируемых записей в лог и имя раздела лога.
-//
-// Сделал эту функцию специально, потому что в некоторых случаях оказывается,
-// что стандартный лог golang просто предопределен и переопределить его на
-// что-то другое невозможно. Например, в http.Server. С помощью данного
-// "костыля" это становится возможным. Но вызов методов SetFlag и добавление
-// даты и времени может привести к тому, что время будет выводиться два раза
-// и в разных форматах. А SetOutput вообще может порушить идиллию. Но тут уж
-// ничего не поделаешь - стандартный Logger не является интерфейсом.
-func (l *Logger) StdLog(lvl Level, name string) *log.Logger {
-	return newStdLog(l.h, lvl, name)
+// Trace записывает в лог низкоуровневое отладочное сообщение.
+func (l Logger) Trace(msg string, fields ...interface{}) {
+	l.h.Write(TRACE, 1, l.name, msg, l.appendFields(fields))
 }
 
-// WithFields возвращает частичную запись в лог с заполненными полями.
-func (l *Logger) WithFields(fields Fields) *Entry {
-	return &Entry{logger: l, fields: fields}
+// Debug записывает в лог низкоуровневое отладочное сообщение.
+func (l Logger) Debug(msg string, fields ...interface{}) {
+	l.h.Write(DEBUG, 1, l.name, msg, l.appendFields(fields))
 }
 
-// WithField возвращает частичную запись в лог с заполненным именованным полем.
-func (l *Logger) WithField(name string, value interface{}) *Entry {
-	return &Entry{logger: l, fields: Fields{name: value}}
+// Info записывает в лог информационное сообщение.
+func (l Logger) Info(msg string, fields ...interface{}) {
+	l.h.Write(INFO, 1, l.name, msg, l.appendFields(fields))
 }
 
-// WithError возвращает частичную запись в лог с заполненным именованным полем
-// с ошибкой.
-func (l *Logger) WithError(err error) *Entry {
-	var fields Fields
-	if err != nil {
-		fields = Fields{"err": err}
+// Warn записывает в лог предупреждающее сообщение.
+func (l Logger) Warn(msg string, fields ...interface{}) {
+	l.h.Write(WARN, 1, l.name, msg, l.appendFields(fields))
+}
+
+// Error записывает в лог сообщение об ошибке.
+func (l Logger) Error(msg string, fields ...interface{}) {
+	l.h.Write(ERROR, 1, l.name, msg, l.appendFields(fields))
+}
+
+// Fatal записывает в лог сообщение о критической ошибке.
+func (l Logger) Fatal(msg string, fields ...interface{}) {
+	l.h.Write(FATAL, 1, l.name, msg, l.appendFields(fields))
+}
+
+// With возвращает новую запись в лог с дополнительными параметрами.
+func (l Logger) With(fields ...interface{}) *Logger {
+	return &Logger{h: l.h, name: l.name, fields: l.appendFields(fields)}
+}
+
+// StdLog возвращает стандартный лог.
+func (l Logger) StdLog(lvl Level) *log.Logger {
+	return newStd(l, lvl)
+}
+
+// appendFields возвращает новый список дополнительных атрибутов, добавляя
+// к уже существующим новые.
+func (l Logger) appendFields(fields []interface{}) []Field {
+	switch len(fields) {
+	case 0, 1:
+		return l.fields
+	case 2:
+		name, ok := fields[0].(string)
+		if !ok || name == "" {
+			name = "key" + strconv.Itoa(len(l.fields)+1)
+		}
+		return append(l.fields, Field{Name: name, Value: fields[1]})
 	}
-	return &Entry{logger: l, fields: fields}
+	var list = make([]Field, len(fields)>>1)
+	var name string
+	for i, field := range fields {
+		var pos = i >> 1
+		if i%2 == 1 {
+			list[pos] = Field{Name: name, Value: field}
+			continue
+		}
+		var ok bool
+		name, ok = field.(string)
+		if !ok || name == "" {
+			name = "key" + strconv.Itoa(len(l.fields)+pos+1)
+		}
+	}
+	if l.fields == nil {
+		return list
+	}
+	return append(l.fields, list...)
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -36,37 +37,37 @@ type Telegram struct {
 //
 // Для отправки сообщений в Telegram необходимо указать токен бота (token),
 // идентификатор чата (chatID) и шаблон для формирования сообщения
-// (TelegramTemplate). Если шаблон не указан, то используется шаблон по
-// умолчанию.
+// (Template). Если шаблон не указан, то используется шаблон по умолчанию.
 func New(token string, chatID int64, tmplt *Template) *Telegram {
 	if tmplt == nil {
 		tmplt = &Template{
 			tmpl:   defaultTemplate,
-			format: "Markdown",
+			format: "HTML",
 		}
 	}
 	return &Telegram{token: token, chatID: chatID, Template: tmplt}
 }
 
-// Log реагирует ТОЛЬКО на сообщения с уровнем ERROR и выше. Все остальные
-// записи игнорируются.
+// Log отсылает лог в Telegram.
 func (t *Telegram) Log(lvl log.Level, category, msg string, fields ...interface{}) error {
-	if lvl < log.ERROR {
-		return nil // игнорируем все, кроме ошибок
+	if lvl < log.INFO {
+		return nil
 	}
 	// формируем текст сообщения на основании шаблона
 	var entry = &struct {
 		Category  string
+		Level     string
 		Message   string
-		Fields    map[string]string
+		Fields    map[string]interface{}
 		CallStack []*log.SourceInfo
 		Header    string
 		Footer    string
 	}{
 		Category:  category,
+		Level:     lvl.String(),
 		Message:   msg,
 		Fields:    nil,
-		CallStack: log.CallStack(1),
+		CallStack: log.CallStack(2),
 		Header:    t.Header,
 		Footer:    t.Footer,
 	}
@@ -76,19 +77,29 @@ func (t *Telegram) Log(lvl log.Level, category, msg string, fields ...interface{
 		break
 	case 1: // дополнительные поля представлены одним элементом
 		if list, ok := fields[0].(map[string]interface{}); ok {
-			entry.Fields = make(map[string]string, len(list))
+			entry.Fields = make(map[string]interface{}, len(list))
 			for name, value := range list {
-				entry.Fields[name] = fmt.Sprint(value)
+				if err, ok := value.(error); ok {
+					entry.Fields[name] = template.HTML(
+						fmt.Sprintf("%v <code>[%[1]T]</code>", err))
+				} else {
+					entry.Fields[name] = fmt.Sprint(value)
+				}
 			}
 		}
 	default:
-		entry.Fields = make(map[string]string, len(fields)>>1)
+		entry.Fields = make(map[string]interface{}, len(fields)>>1)
 		var name string
 		for i, field := range fields {
 			if i%2 == 0 {
 				name = fmt.Sprint(field)
 			} else {
-				entry.Fields[name] = fmt.Sprint(field)
+				if err, ok := field.(error); ok {
+					entry.Fields[name] = template.HTML(
+						fmt.Sprintf("%v <code>[%[1]T]</code>", err))
+				} else {
+					entry.Fields[name] = fmt.Sprint(field)
+				}
 			}
 		}
 	}
@@ -97,6 +108,8 @@ func (t *Telegram) Log(lvl log.Level, category, msg string, fields ...interface{
 		return err
 	}
 	// отправляем на Telegram
+	// fmt.Println(buf.String())
+	// return nil
 	return t.Send(buf.String(), t.format)
 }
 

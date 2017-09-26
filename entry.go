@@ -1,77 +1,67 @@
 package log
 
-import "errors"
+import (
+	"runtime"
+	"strings"
+	"time"
+)
 
-// Entry описывает частично заполненную дополнительными полями запись лога.
+// Source описывает информацию об исходном файле с кодом.
+type Source struct {
+	Pkg  string // библиотека
+	Func string // название функции
+	File string // имя файла
+	Line int    // номер строки
+}
+
+// Entry используется при форматировании записи лога.
 type Entry struct {
-	logger *Logger
-	fields Fields
+	Timestamp time.Time // время инициализируется при записи в лог
+	Level     Level     // уровень записи
+	Category  string    // название лога
+	Message   string    // сообщение
+	Stack     []Source  // стек вызовов
+	Fields    []Field   // дополнительные именованные поля
+	calldepth int       // уровень вложенности до исходного вызова
 }
 
-// WithFields добавляет список дополнительных полей к записи.
-func (c *Entry) WithFields(fields Fields) *Entry {
-	if c.fields == nil {
-		c.fields = fields
-	} else {
-		for name, value := range fields {
-			c.fields[name] = value
-		}
+// CallStack автоматически заполняет информацией о стеке вызовов, если она не
+// была заполнена ранее.
+func (e *Entry) CallStack(calldepth int) {
+	if e.Stack != nil {
+		return // уже заполнено
 	}
-	return c
-}
-
-// WithField добавляет именованный параметр к записи лога.
-func (c *Entry) WithField(name string, value interface{}) *Entry {
-	if c.fields == nil {
-		c.fields = Fields{name: value}
-	} else {
-		c.fields[name] = value
+	pc := make([]uintptr, 10)
+	n := runtime.Callers(2+calldepth+e.calldepth, pc)
+	if n == 0 {
+		e.Stack = []Source{}
+		return // пустой стек, чтобы не заполнять еще раз
 	}
-	return c
-}
-
-// WithError добавляет к дополнительным атрибутам не пустое значение ошибки.
-func (c *Entry) WithError(err error) *Entry {
-	if err != nil {
-		return c.WithField("err", err)
+	frames := runtime.CallersFrames(pc[:n])
+next:
+	frame, more := frames.Next()
+	if strings.HasPrefix(frame.Function, "runtime.") {
+		return // не заполняем системными функциями
 	}
-	return c
-}
-
-// WithSource добавляет в дополнительные атрибуты информацию об исходном файле.
-func (c *Entry) WithSource() *Entry {
-	return c.WithField("src", Source(0))
-}
-
-// Trace выводит необязательное отладочное сообщение в лог.
-func (c *Entry) Trace(msg string) {
-	c.logger.h.Log(TRACE, c.logger.name, msg, c.fields)
-}
-
-// Debug выводит отладочное сообщение в лог.
-func (c *Entry) Debug(msg string) {
-	c.logger.h.Log(DEBUG, c.logger.name, msg, c.fields)
-}
-
-// Info выводит информационное сообщение в лог.
-func (c *Entry) Info(msg string) {
-	c.logger.h.Log(INFO, c.logger.name, msg, c.fields)
-}
-
-// Warn выводит в лог предупреждение.
-func (c *Entry) Warn(msg string) error {
-	c.logger.h.Log(WARN, c.logger.name, msg, c.fields)
-	return errors.New(msg)
-}
-
-// Error выводит в лок сообщение об ошибке.
-func (c *Entry) Error(msg string) error {
-	c.logger.h.Log(ERROR, c.logger.name, msg, c.fields)
-	return errors.New(msg)
-}
-
-// Fatal выводит в лок высокоприоритетное сообщение об ошибке.
-func (c *Entry) Fatal(msg string) error {
-	c.logger.h.Log(FATAL, c.logger.name, msg, c.fields)
-	return errors.New(msg)
+	var source = Source{
+		Line: frame.Line,
+		Func: frame.Function,
+		File: frame.File,
+	}
+	if lastslash := strings.LastIndex(source.Func, "/"); lastslash >= 0 {
+		source.Pkg = source.Func[:lastslash] + "/"
+		source.Func = source.Func[lastslash+1:]
+	}
+	if period := strings.Index(source.Func, "."); period >= 0 {
+		source.Pkg += source.Func[:period]
+		source.Func = source.Func[period+1:]
+	}
+	source.Func = strings.Replace(source.Func, "·", ".", -1)
+	if lastslash := strings.LastIndex(source.File, "/"); lastslash >= 0 {
+		source.File = source.File[lastslash+1:]
+	}
+	e.Stack = append(e.Stack, source)
+	if more {
+		goto next
+	}
 }

@@ -12,6 +12,7 @@ type Template struct {
 // Формат текст задается в параметре format и может быть либо "Markdown", либо
 // "HTML". В шаблоне доступны следующие поля:
 // 	Category  string
+// 	Level     string
 // 	Message   string
 // 	Fields    log.Fields
 // 	CallStack []*log.SourceInfo
@@ -26,9 +27,11 @@ func NewTemplate(text, format string) (*Template, error) {
 }
 
 var defaultTemplate = template.Must(template.New("").Parse(
-	"{{if .Header}}{{.Header}}\n{{end}}" +
-		"{{if .Category}}*[{{.Category}}]*: {{end}}{{.Message}}\n\n" +
-		"{{if .Fields}}{{range $name, $value := .Fields}}_{{$name}}_: " +
-		"{{$value}}\n{{end}}\n{{end}}{{range $value := .CallStack}}" +
-		"- `{{$value}}`\n{{end}}" +
-		"{{if .Footer}}\n{{.Footer}}\n{{end}}"))
+	`{{if .Header}}{{.Header}}
+{{end}}[<b>{{.Level}}</b>] {{if .Category}}{{.Category}}: {{end}}{{.Message}}
+{{range $name, $value := .Fields}}
+<i>{{$name}}</i>: {{$value}}{{end}}{{if .CallStack}}
+<pre>{{range $value := .CallStack}}- {{$value}}
+{{end}}</pre>{{end}}{{if .Footer}}
+{{.Footer}}
+{{end}}`))
