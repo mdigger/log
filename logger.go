@@ -33,61 +33,61 @@ func NewLogger(h Handler) *Logger {
 
 // New возвращает новую категорию с новым именем для того же лога. Имена
 // добавляются через точку, используя предыдущее имя лога.
-func (l Logger) New(name string, fields ...interface{}) Logger {
+func (l *Logger) New(name string, fields ...interface{}) *Logger {
 	if l.name != "" {
 		name = l.name + "." + name
 	}
-	return Logger{h: l.h, name: name, fields: l.appendFields(fields)}
+	return &Logger{h: l.h, name: name, fields: l.appendFields(fields)}
 }
 
 // Log записывает в лог сообщение с заданным уровнем.
-func (l Logger) Log(lvl Level, msg string, fields ...interface{}) {
+func (l *Logger) Log(lvl Level, msg string, fields ...interface{}) {
 	l.h.Write(lvl, 1, l.name, msg, l.appendFields(fields))
 }
 
 // Trace записывает в лог низкоуровневое отладочное сообщение.
-func (l Logger) Trace(msg string, fields ...interface{}) {
+func (l *Logger) Trace(msg string, fields ...interface{}) {
 	l.h.Write(TRACE, 1, l.name, msg, l.appendFields(fields))
 }
 
 // Debug записывает в лог низкоуровневое отладочное сообщение.
-func (l Logger) Debug(msg string, fields ...interface{}) {
+func (l *Logger) Debug(msg string, fields ...interface{}) {
 	l.h.Write(DEBUG, 1, l.name, msg, l.appendFields(fields))
 }
 
 // Info записывает в лог информационное сообщение.
-func (l Logger) Info(msg string, fields ...interface{}) {
+func (l *Logger) Info(msg string, fields ...interface{}) {
 	l.h.Write(INFO, 1, l.name, msg, l.appendFields(fields))
 }
 
 // Warn записывает в лог предупреждающее сообщение.
-func (l Logger) Warn(msg string, fields ...interface{}) {
+func (l *Logger) Warn(msg string, fields ...interface{}) {
 	l.h.Write(WARN, 1, l.name, msg, l.appendFields(fields))
 }
 
 // Error записывает в лог сообщение об ошибке.
-func (l Logger) Error(msg string, fields ...interface{}) {
+func (l *Logger) Error(msg string, fields ...interface{}) {
 	l.h.Write(ERROR, 1, l.name, msg, l.appendFields(fields))
 }
 
 // Fatal записывает в лог сообщение о критической ошибке.
-func (l Logger) Fatal(msg string, fields ...interface{}) {
+func (l *Logger) Fatal(msg string, fields ...interface{}) {
 	l.h.Write(FATAL, 1, l.name, msg, l.appendFields(fields))
 }
 
 // With возвращает новую запись в лог с дополнительными параметрами.
-func (l Logger) With(fields ...interface{}) *Logger {
+func (l *Logger) With(fields ...interface{}) *Logger {
 	return &Logger{h: l.h, name: l.name, fields: l.appendFields(fields)}
 }
 
 // StdLog возвращает стандартный лог.
-func (l Logger) StdLog(lvl Level) *log.Logger {
+func (l *Logger) StdLog(lvl Level) *log.Logger {
 	return newStd(l, lvl)
 }
 
 // appendFields возвращает новый список дополнительных атрибутов, добавляя
 // к уже существующим новые.
-func (l Logger) appendFields(fields []interface{}) []Field {
+func (l *Logger) appendFields(fields []interface{}) []Field {
 	switch len(fields) {
 	case 0, 1:
 		return l.fields

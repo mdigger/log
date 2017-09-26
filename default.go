@@ -36,8 +36,8 @@ func IsTTY() bool {
 }
 
 // New возвращает новый именованный раздел лога по умолчанию.
-func New(name string, fields ...interface{}) Logger {
-	return Logger{h: h, name: name, fields: h.appendFields(fields)}
+func New(name string, fields ...interface{}) *Logger {
+	return &Logger{h: h, name: name, fields: h.appendFields(fields)}
 }
 
 // Log выводит сообщение с указанным уровнем в лог по умолчанию.
@@ -77,5 +77,5 @@ func With(fields ...interface{}) *Logger {
 
 // StdLog возвращает стандартный лог.
 func StdLog(lvl Level, name string, fields ...interface{}) *log.Logger {
-	return newStd(Logger{h: h, name: name, fields: h.appendFields(fields)}, lvl)
+	return newStd(&Logger{h: h, name: name, fields: h.appendFields(fields)}, lvl)
 }
