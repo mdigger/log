@@ -1,35 +1,38 @@
 package log
 
 import (
+	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
 
-// Formatter описывает интерфейс для форматирования записей лога. Используется
+// Encoder описывает интерфейс для форматирования записей лога. Используется
 // Writer для задания формата. Данная библиотека содержит поддержку двух
 // форматов логов: Console и JSON.
-type Formatter interface {
-	Format(buf []byte, entry *Entry) []byte
+type Encoder interface {
+	Encode(buf []byte, entry *Entry) []byte
 }
 
 // Writer описывает обработчик лога, записывающего в файл, консоль или
 // другой поток.
 type Writer struct {
-	format Formatter
-	lvl    Level
-	w      io.Writer
-	mu     sync.RWMutex
+	enc Encoder
+	lvl Level
+	w   io.Writer
+	mu  sync.RWMutex
 	Logger
 }
 
 // NewWriter возвращает новый обработчик лога.
-func NewWriter(w io.Writer, lvl Level, format Formatter) *Writer {
-	if format == nil {
-		format = new(Console)
+func NewWriter(w io.Writer, lvl Level, enc Encoder) *Writer {
+	if enc == nil {
+		enc = new(Console)
 	}
-	var h = &Writer{w: w, lvl: lvl, format: format}
+	var h = &Writer{w: w, lvl: lvl, enc: enc}
 	h.Logger = Logger{h: h}
 	return h
 }
@@ -49,13 +52,89 @@ func (h *Writer) SetOutput(w io.Writer) {
 }
 
 // SetFormat задает свойства форматирования записей лога.
-func (h *Writer) SetFormat(format Formatter) {
-	if format == nil {
-		format = new(Console)
+func (h *Writer) SetFormat(enc Encoder) {
+	if enc == nil {
+		enc = new(Console)
 	}
 	h.mu.Lock()
-	h.format = format
+	h.enc = enc
 	h.mu.Unlock()
+}
+
+// String возвращает уровень и формат вывода лога.
+func (h *Writer) String() string {
+	h.mu.RLock()
+	var level string
+	switch h.lvl {
+	case -128:
+		level = "ALL"
+	case 127:
+		level = "NONE"
+	case TRACE:
+		level = "TRACE"
+	case DEBUG:
+		level = "DEBUG"
+	case INFO:
+		level = "INFO"
+	case ERROR:
+		level = "ERROR"
+	case FATAL:
+		level = "FATAL"
+	default:
+		level = strconv.Itoa(int(h.lvl))
+	}
+	switch h.enc.(type) {
+	case *JSON:
+		level += ":JSON"
+	case *Color:
+		level += ":DEV"
+	case *Console:
+	}
+	h.mu.RUnlock()
+	return level
+}
+
+// Set устанавливает уровень и формат вывода лога.
+func (h *Writer) Set(opt string) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, opt := range strings.FieldsFunc(opt, func(c rune) bool {
+		return map[rune]bool{
+			' ': true, '\t': true, ';': true, ',': true, ':': true}[c]
+	}) {
+		switch strings.ToUpper(opt) {
+		case "ALL", "A", "*":
+			h.lvl = -128
+		case "TRACE", "TRC", "T":
+			h.lvl = TRACE
+		case "DEBUG", "DBG", "D":
+			h.lvl = DEBUG
+		case "INFO", "INF", "I":
+			h.lvl = INFO
+		case "WARNING", "WARN", "WRN", "W":
+			h.lvl = WARN
+		case "ERROR", "ERR", "E":
+			h.lvl = ERROR
+		case "FATAL", "FTL", "F":
+			h.lvl = FATAL
+		case "NONE", "NO", "N", "OFF", "FALSE":
+			h.lvl = 127
+		case "JSON", "JSN", "J":
+			h.enc = new(JSON)
+		case "STANDART", "STD", "S", "CONSOLE":
+			h.enc = &Console{TimeFormat: "2006-01-02 15:04:05"}
+		case "COLORS", "COLOR", "DEVELOPERS", "DEVELOPER", "DEVELOP", "DEV", "C":
+			h.enc = &Color{KeyIndent: 8}
+		case "":
+		default:
+			if lvl, err := strconv.ParseInt(opt, 10, 8); err == nil {
+				h.lvl = Level(lvl)
+				continue
+			}
+			return fmt.Errorf("unknown log format %q", opt)
+		}
+	}
+	return nil
 }
 
 // IsTTY возвращает true, если поток является терминалом или файлом.
@@ -75,21 +154,35 @@ func (h *Writer) IsTTY() bool {
 func (h *Writer) Write(lvl Level, calldepth int, category, msg string,
 	fields []Field) error {
 	h.mu.RLock()
-	if h.format == nil || h.w == nil || lvl < h.lvl {
+	if h.enc == nil || h.w == nil || lvl < h.lvl {
 		h.mu.RUnlock()
 		return nil
 	}
 	h.mu.RUnlock()
+	var names = make(map[string]int, len(fields))
+	var result = make([]Field, 0, len(fields))
+	for i, field := range fields {
+		if field.Name == "" {
+			field.Name = "_" // подменяем пустое имя
+		}
+		// проверяем, что поле с таким именем уже было
+		if pos, ok := names[field.Name]; ok {
+			result[pos].Value = field.Value // заменяем старое значение на новое
+			continue
+		}
+		result = append(result, field)
+		names[field.Name] = i // сохраняем позицию
+	}
 	var entry = entries.Get().(*Entry)
 	entry.Timestamp = time.Time{} // не устанавливаем время до записи
 	entry.Level = lvl
 	entry.Category = category
 	entry.Message = msg
-	entry.Stack = nil // по умолчанию стек не заполняется
-	entry.Fields = fields
-	entry.calldepth = calldepth + 2
+	entry.Fields = result
+	entry.Stack = nil               // по умолчанию информация не заполняется
+	entry.calldepth = calldepth + 2 // с учетом вызова этой функции и Encode
 	var buf = buffers.Get().([]byte)
-	buf = h.format.Format(buf[:0], entry)
+	buf = h.enc.Encode(buf[:0], entry)
 	entries.Put(entry)
 	h.mu.Lock()
 	_, err := h.w.Write(buf)
@@ -99,6 +192,6 @@ func (h *Writer) Write(lvl Level, calldepth int, category, msg string,
 }
 
 var (
-	buffers = sync.Pool{New: func() interface{} { return []byte{} }}
+	buffers = sync.Pool{New: func() interface{} { return make([]byte, 0, 1<<10) }}
 	entries = sync.Pool{New: func() interface{} { return new(Entry) }}
 )

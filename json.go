@@ -11,8 +11,8 @@ import (
 // JSON формирует запись в лог в формате JSON.
 type JSON struct{}
 
-// Format возвращает представление записи в лог в формате JSON.
-func (f JSON) Format(buf []byte, entry *Entry) []byte {
+// Encode возвращает представление записи в лог в формате JSON.
+func (f JSON) Encode(buf []byte, entry *Entry) []byte {
 	buf = append(buf, `{"ts":`...)
 	if entry.Timestamp.IsZero() {
 		entry.Timestamp = time.Now()
@@ -33,6 +33,8 @@ func (f JSON) Format(buf []byte, entry *Entry) []byte {
 		buf = strconv.AppendQuote(buf, field.Name)
 		buf = append(buf, ':')
 		switch value := field.Value.(type) {
+		case nil:
+			buf = append(buf, "null"...)
 		case string:
 			buf = strconv.AppendQuote(buf, value)
 		case []byte:
@@ -42,9 +44,11 @@ func (f JSON) Format(buf []byte, entry *Entry) []byte {
 			buf = append(buf, b64...)
 			buf = append(buf, '"')
 		case error:
-			buf = strconv.AppendQuote(buf, value.Error())
-		case fmt.Stringer:
-			buf = strconv.AppendQuote(buf, value.String())
+			if value == nil {
+				buf = append(buf, "null"...)
+			} else {
+				buf = strconv.AppendQuote(buf, value.Error())
+			}
 		case bool:
 			buf = strconv.AppendBool(buf, value)
 		case int:
@@ -71,6 +75,16 @@ func (f JSON) Format(buf []byte, entry *Entry) []byte {
 			buf = strconv.AppendFloat(buf, float64(value), 'g', -1, 32)
 		case float64:
 			buf = strconv.AppendFloat(buf, value, 'g', -1, 64)
+		case time.Time:
+			if value.IsZero() {
+				buf = append(buf, `""`...)
+			} else {
+				buf = value.AppendFormat(buf, time.RFC3339)
+			}
+		case time.Duration:
+			buf = strconv.AppendInt(buf, int64(value), 10)
+		case fmt.Stringer:
+			buf = strconv.AppendQuote(buf, value.String())
 		default:
 			if data, err := json.Marshal(value); err == nil {
 				buf = append(buf, data...)
@@ -81,17 +95,14 @@ func (f JSON) Format(buf []byte, entry *Entry) []byte {
 	}
 	// для предупреждений и ошибок добавляем информацию об исходном файле
 	if entry.Level >= WARN {
-		if entry.Stack == nil {
-			entry.CallStack(1)
-		}
-		if len(entry.Stack) > 0 {
+		if src := entry.Source(1); src != nil {
 			buf = append(buf, `,"@src":`...)
 			buf = append(buf, '"')
-			buf = append(buf, entry.Stack[0].Pkg...)
+			buf = append(buf, src.Pkg...)
 			buf = append(buf, '/')
-			buf = append(buf, entry.Stack[0].File...)
+			buf = append(buf, src.File...)
 			buf = append(buf, ':')
-			buf = strconv.AppendInt(buf, int64(entry.Stack[0].Line), 10)
+			buf = strconv.AppendInt(buf, int64(src.Line), 10)
 			buf = append(buf, '"')
 		}
 	}

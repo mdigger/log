@@ -14,9 +14,9 @@ type Console struct {
 	Levels     map[Level]string // переопределение строк для вывода уровня
 }
 
-// Format форматирует в буфер запись лога для текстового консольного
+// Encode форматирует в буфер запись лога для текстового консольного
 // представления.
-func (f Console) Format(buf []byte, entry *Entry) []byte {
+func (f Console) Encode(buf []byte, entry *Entry) []byte {
 	// выводим дату и время, если задан формат
 	if f.TimeFormat != "" {
 		if entry.Timestamp.IsZero() {
@@ -31,15 +31,12 @@ func (f Console) Format(buf []byte, entry *Entry) []byte {
 	}
 	// информация об исходном файле
 	if f.WithSource {
-		if entry.Stack == nil {
-			entry.CallStack(1)
-		}
-		if len(entry.Stack) > 0 {
-			buf = append(buf, entry.Stack[0].Pkg...)
+		if src := entry.Source(1); src != nil {
+			buf = append(buf, src.Pkg...)
 			buf = append(buf, '/')
-			buf = append(buf, entry.Stack[0].File...)
+			buf = append(buf, src.File...)
 			buf = append(buf, ':')
-			buf = strconv.AppendInt(buf, int64(entry.Stack[0].Line), 10)
+			buf = strconv.AppendInt(buf, int64(src.Line), 10)
 			buf = append(buf, ' ')
 		}
 	}
@@ -67,45 +64,59 @@ func (f Console) Format(buf []byte, entry *Entry) []byte {
 		buf = append(buf, ' ')
 		buf = append(buf, field.Name...)
 		buf = append(buf, '=')
-		switch value := field.Value.(type) {
-		case string:
-			buf = strconv.AppendQuote(buf, value)
-		case []byte:
-			buf = strconv.AppendQuoteToGraphic(buf, string(value))
-		case error:
-			buf = strconv.AppendQuote(buf, value.Error())
-		case fmt.Stringer:
-			buf = strconv.AppendQuote(buf, value.String())
-		case bool:
-			buf = strconv.AppendBool(buf, value)
-		case int:
-			buf = strconv.AppendInt(buf, int64(value), 10)
-		case int8:
-			buf = strconv.AppendInt(buf, int64(value), 10)
-		case int16:
-			buf = strconv.AppendInt(buf, int64(value), 10)
-		case int32:
-			buf = strconv.AppendInt(buf, int64(value), 10)
-		case int64:
-			buf = strconv.AppendInt(buf, value, 10)
-		case uint:
-			buf = strconv.AppendUint(buf, uint64(value), 10)
-		case uint8:
-			buf = strconv.AppendUint(buf, uint64(value), 10)
-		case uint16:
-			buf = strconv.AppendUint(buf, uint64(value), 10)
-		case uint32:
-			buf = strconv.AppendUint(buf, uint64(value), 10)
-		case uint64:
-			buf = strconv.AppendUint(buf, value, 10)
-		case float32:
-			buf = strconv.AppendFloat(buf, float64(value), 'g', -1, 32)
-		case float64:
-			buf = strconv.AppendFloat(buf, value, 'g', -1, 64)
-		default:
-			buf = append(buf, fmt.Sprint(value)...)
-		}
+		buf = consoleValue(buf, field.Value)
 	}
 	buf = append(buf, '\n')
+	return buf
+}
+
+// consoleValue отвечает за форматирование значения для вывода в консоль.
+func consoleValue(buf []byte, val interface{}) []byte {
+	switch value := val.(type) {
+	case nil:
+		buf = append(buf, "nil"...)
+	case string:
+		buf = strconv.AppendQuote(buf, value)
+	case []byte:
+		buf = strconv.AppendQuoteToGraphic(buf, string(value))
+	case error:
+		buf = strconv.AppendQuote(buf, value.Error())
+	case bool:
+		buf = strconv.AppendBool(buf, value)
+	case int:
+		buf = strconv.AppendInt(buf, int64(value), 10)
+	case int8:
+		buf = strconv.AppendInt(buf, int64(value), 10)
+	case int16:
+		buf = strconv.AppendInt(buf, int64(value), 10)
+	case int32:
+		buf = strconv.AppendInt(buf, int64(value), 10)
+	case int64:
+		buf = strconv.AppendInt(buf, value, 10)
+	case uint:
+		buf = strconv.AppendUint(buf, uint64(value), 10)
+	case uint8:
+		buf = strconv.AppendUint(buf, uint64(value), 10)
+	case uint16:
+		buf = strconv.AppendUint(buf, uint64(value), 10)
+	case uint32:
+		buf = strconv.AppendUint(buf, uint64(value), 10)
+	case uint64:
+		buf = strconv.AppendUint(buf, value, 10)
+	case float32:
+		buf = strconv.AppendFloat(buf, float64(value), 'g', -1, 32)
+	case float64:
+		buf = strconv.AppendFloat(buf, value, 'g', -1, 64)
+	case time.Time:
+		buf = append(buf, '"')
+		if !value.IsZero() {
+			buf = value.AppendFormat(buf, "2006-01-02 15:04:05")
+		}
+		buf = append(buf, '"')
+	case fmt.Stringer:
+		buf = strconv.AppendQuote(buf, value.String())
+	default:
+		buf = append(buf, fmt.Sprint(value)...)
+	}
 	return buf
 }
