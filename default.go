@@ -31,6 +31,14 @@ func SetLevel(lvl Level) {
 	h.SetLevel(lvl)
 }
 
+// GetLevel возвращает текущий уровень лога по умолчанию.
+func GetLevel() Level {
+	h.mu.RLock()
+	level := h.lvl
+	h.mu.RUnlock()
+	return level
+}
+
 // SetOutput переопределяет вывод лога по умолчанию. Изначально используется
 // os.Stderr.
 func SetOutput(w io.Writer) {

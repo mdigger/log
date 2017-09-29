@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 )
 
 // Encoder описывает интерфейс для форматирования записей лога. Используется
@@ -159,31 +158,10 @@ func (h *Writer) Write(lvl Level, calldepth int, category, msg string,
 		return nil
 	}
 	h.mu.RUnlock()
-	var names = make(map[string]int, len(fields))
-	var result = make([]Field, 0, len(fields))
-	for i, field := range fields {
-		if field.Name == "" {
-			field.Name = "_" // подменяем пустое имя
-		}
-		// проверяем, что поле с таким именем уже было
-		if pos, ok := names[field.Name]; ok {
-			result[pos].Value = field.Value // заменяем старое значение на новое
-			continue
-		}
-		result = append(result, field)
-		names[field.Name] = i // сохраняем позицию
-	}
-	var entry = entries.Get().(*Entry)
-	entry.Timestamp = time.Time{} // не устанавливаем время до записи
-	entry.Level = lvl
-	entry.Category = category
-	entry.Message = msg
-	entry.Fields = result
-	entry.Stack = nil               // по умолчанию информация не заполняется
-	entry.calldepth = calldepth + 2 // с учетом вызова этой функции и Encode
+	var entry = NewEntry(lvl, calldepth, category, msg, fields)
 	var buf = buffers.Get().([]byte)
 	buf = h.enc.Encode(buf[:0], entry)
-	entries.Put(entry)
+	entry.Free()
 	h.mu.Lock()
 	_, err := h.w.Write(buf)
 	h.mu.Unlock()

@@ -1,6 +1,7 @@
 package log
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 	"time"
@@ -58,7 +59,7 @@ func (f Color) Encode(buf []byte, entry *Entry) []byte {
 		case DEBUG:
 			buf = append(buf, "94"...)
 		case TRACE:
-			buf = append(buf, "95"...)
+			buf = append(buf, "96"...)
 		default:
 			buf = append(buf, "37"...)
 		}
@@ -88,14 +89,53 @@ func (f Color) Encode(buf []byte, entry *Entry) []byte {
 		if f.KeyIndent > 0 {
 			buf = append(buf, ' ')
 		}
-		if e, ok := field.Value.(error); ok {
-			buf = strconv.AppendQuote(buf, e.Error())
+		switch value := field.Value.(type) {
+		case nil:
+			buf = append(buf, "nil"...)
+		case string:
+			buf = append(buf, value...)
+		case error:
+			buf = strconv.AppendQuote(buf, value.Error())
 			buf = append(buf, " \x1b[2m[\x1b[0m\x1b[91m"...)
-			buf = append(buf, reflect.TypeOf(e).String()...)
+			buf = append(buf, reflect.TypeOf(value).String()...)
 			buf = append(buf, "\x1b[0m\x1b[2m]\x1b[0m"...)
-			continue
+		case bool:
+			buf = strconv.AppendBool(buf, value)
+		case int:
+			buf = strconv.AppendInt(buf, int64(value), 10)
+		case int8:
+			buf = strconv.AppendInt(buf, int64(value), 10)
+		case int16:
+			buf = strconv.AppendInt(buf, int64(value), 10)
+		case int32:
+			buf = strconv.AppendInt(buf, int64(value), 10)
+		case int64:
+			buf = strconv.AppendInt(buf, value, 10)
+		case uint:
+			buf = strconv.AppendUint(buf, uint64(value), 10)
+		case uint8:
+			buf = strconv.AppendUint(buf, uint64(value), 10)
+		case uint16:
+			buf = strconv.AppendUint(buf, uint64(value), 10)
+		case uint32:
+			buf = strconv.AppendUint(buf, uint64(value), 10)
+		case uint64:
+			buf = strconv.AppendUint(buf, value, 10)
+		case float32:
+			buf = strconv.AppendFloat(buf, float64(value), 'g', -1, 32)
+		case float64:
+			buf = strconv.AppendFloat(buf, value, 'g', -1, 64)
+		case time.Time:
+			buf = append(buf, '"')
+			if !value.IsZero() {
+				buf = value.AppendFormat(buf, "2006-01-02 15:04:05")
+			}
+			buf = append(buf, '"')
+		case fmt.Stringer:
+			buf = append(buf, value.String()...)
+		default:
+			buf = append(buf, fmt.Sprint(value)...)
 		}
-		buf = consoleValue(buf, field.Value)
 	}
 	// для ошибок выводим стек вызовов
 	if entry.Level >= WARN {

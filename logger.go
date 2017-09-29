@@ -26,6 +26,11 @@ type Logger struct {
 	fields []Field // дополнительные поля
 }
 
+// NewLogger возвращает новый лог с указанным обработчиком.
+func NewLogger(h Handler) *Logger {
+	return &Logger{h: h}
+}
+
 // New возвращает новый именованный раздел лога. Новое имя будет добавлено к
 // имени предыдущего раздела лога с разделителем ".".
 func (l *Logger) New(name string, fields ...interface{}) *Logger {
@@ -112,8 +117,10 @@ func (l *Logger) with(fields []interface{}) []Field {
 		switch val := fields[i].(type) {
 		case Field:
 			result = append(result, val)
+			continue
 		case []Field:
 			result = append(result, val...)
+			continue
 		case Fields: // поля уже является самостоятельным списком
 			for name, value := range val {
 				result = append(result, Field{name, value})

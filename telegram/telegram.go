@@ -48,68 +48,38 @@ func New(token string, chatID int64, tmplt *Template) *Telegram {
 	return &Telegram{token: token, chatID: chatID, Template: tmplt}
 }
 
-// Log отсылает лог в Telegram.
-func (t *Telegram) Log(lvl log.Level, category, msg string, fields ...interface{}) error {
+// Write отсылает лог в Telegram.
+func (t *Telegram) Write(lvl log.Level, calldepth int, category, msg string, fields []log.Field) error {
 	if lvl < log.INFO {
 		return nil
 	}
+	// изменяем ошибку
+	for i, field := range fields {
+		if err, ok := field.Value.(error); ok {
+			field.Value = template.HTML(
+				fmt.Sprintf("%v <code>[%[1]T]</code>", err))
+			fields[i] = field
+		}
+	}
 	// формируем текст сообщения на основании шаблона
 	var entry = &struct {
-		Category  string
-		Level     string
-		Message   string
-		Fields    map[string]interface{}
-		CallStack []*log.SourceInfo
-		Header    string
-		Footer    string
+		*log.Entry
+		Header string
+		Footer string
 	}{
-		Category:  category,
-		Level:     lvl.String(),
-		Message:   msg,
-		Fields:    nil,
-		CallStack: log.CallStack(2),
-		Header:    t.Header,
-		Footer:    t.Footer,
+		Entry:  log.NewEntry(lvl, calldepth, category, msg, fields),
+		Header: t.Header,
+		Footer: t.Footer,
 	}
-
-	switch len(fields) {
-	case 0: // нет дополнительных полей
-		break
-	case 1: // дополнительные поля представлены одним элементом
-		if list, ok := fields[0].(map[string]interface{}); ok {
-			entry.Fields = make(map[string]interface{}, len(list))
-			for name, value := range list {
-				if err, ok := value.(error); ok {
-					entry.Fields[name] = template.HTML(
-						fmt.Sprintf("%v <code>[%[1]T]</code>", err))
-				} else {
-					entry.Fields[name] = fmt.Sprint(value)
-				}
-			}
-		}
-	default:
-		entry.Fields = make(map[string]interface{}, len(fields)>>1)
-		var name string
-		for i, field := range fields {
-			if i%2 == 0 {
-				name = fmt.Sprint(field)
-			} else {
-				if err, ok := field.(error); ok {
-					entry.Fields[name] = template.HTML(
-						fmt.Sprintf("%v <code>[%[1]T]</code>", err))
-				} else {
-					entry.Fields[name] = fmt.Sprint(field)
-				}
-			}
-		}
-	}
+	entry.CallStack(1)
 	var buf bytes.Buffer
 	if err := t.tmpl.Execute(&buf, entry); err != nil {
 		return err
 	}
-	// отправляем на Telegram
+	entry.Free()
 	// fmt.Println(buf.String())
 	// return nil
+	// отправляем на Telegram
 	return t.Send(buf.String(), t.format)
 }
 
