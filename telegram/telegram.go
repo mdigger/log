@@ -89,8 +89,8 @@ func (t *Telegram) Write(lvl log.Level, calldepth int, category, msg string, fie
 		return err
 	}
 	entry.Free()
-	fmt.Println(buf.String())
-	return nil
+	// fmt.Println(buf.String())
+	// return nil
 	// отправляем на Telegram
 	return t.Send(buf.String(), t.format)
 }
