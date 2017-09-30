@@ -3,7 +3,6 @@ package telegram
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mdigger/errors"
 	"github.com/mdigger/log"
 )
 
@@ -56,8 +56,19 @@ func (t *Telegram) Write(lvl log.Level, calldepth int, category, msg string, fie
 	// изменяем ошибку
 	for i, field := range fields {
 		if err, ok := field.Value.(error); ok {
-			field.Value = template.HTML(
-				fmt.Sprintf("%v <code>[%[1]T]</code>", err))
+			msg := err.Error()
+			if err, ok := err.(*errors.Error); ok {
+				if err := err.Cause(); err != nil {
+					msg += "\n\t<i>cause:</i> " + err.Error()
+					msg += fmt.Sprintf("\n\t<code>%#+v</code>", err)
+				}
+				for _, src := range err.Stacks() {
+					msg += "\n\t- " + src.Func + " [" + src.String() + "] "
+				}
+			} else {
+				msg += fmt.Sprintf("\n\t<code>%#+[1]v</code>", err)
+			}
+			field.Value = template.HTML(msg)
 			fields[i] = field
 		}
 	}
@@ -67,11 +78,10 @@ func (t *Telegram) Write(lvl log.Level, calldepth int, category, msg string, fie
 		Header string
 		Footer string
 	}{
-		Entry:  log.NewEntry(lvl, calldepth, category, msg, fields),
+		Entry:  log.NewEntry(lvl, category, msg, fields),
 		Header: t.Header,
 		Footer: t.Footer,
 	}
-	entry.CallStack(1)
 	var buf bytes.Buffer
 	if err := t.tmpl.Execute(&buf, entry); err != nil {
 		return err

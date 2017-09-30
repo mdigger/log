@@ -13,7 +13,7 @@ import (
 // Writer для задания формата. Данная библиотека содержит поддержку двух
 // форматов логов: Console и JSON.
 type Encoder interface {
-	Encode(buf []byte, entry *Entry) []byte
+	Encode(entry *Entry) []byte
 }
 
 // Writer описывает обработчик лога, записывающего в файл, консоль или
@@ -150,17 +150,15 @@ func (h *Writer) IsTTY() bool {
 }
 
 // Write поддерживает интерфейс записи логов Handler.
-func (h *Writer) Write(lvl Level, calldepth int, category, msg string,
-	fields []Field) error {
+func (h *Writer) Write(lvl Level, category, msg string, fields []Field) error {
 	h.mu.RLock()
 	if h.enc == nil || h.w == nil || lvl < h.lvl {
 		h.mu.RUnlock()
 		return nil
 	}
 	h.mu.RUnlock()
-	var entry = NewEntry(lvl, calldepth, category, msg, fields)
-	var buf = buffers.Get().([]byte)
-	buf = h.enc.Encode(buf[:0], entry)
+	var entry = NewEntry(lvl, category, msg, fields)
+	var buf = h.enc.Encode(entry)
 	entry.Free()
 	h.mu.Lock()
 	_, err := h.w.Write(buf)
@@ -168,8 +166,3 @@ func (h *Writer) Write(lvl Level, calldepth int, category, msg string,
 	buffers.Put(buf)
 	return err
 }
-
-var (
-	buffers = sync.Pool{New: func() interface{} { return make([]byte, 0, 1<<10) }}
-	entries = sync.Pool{New: func() interface{} { return new(Entry) }}
-)

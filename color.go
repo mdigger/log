@@ -2,9 +2,10 @@ package log
 
 import (
 	"fmt"
-	"reflect"
 	"strconv"
 	"time"
+
+	"github.com/mdigger/errors"
 )
 
 // Color выводит лог в более удобном для чтения в консоли виде, используя
@@ -16,15 +17,16 @@ type Color struct {
 
 // Encode форматирует в буфер запись лога для текстового консольного
 // представления.
-func (f Color) Encode(buf []byte, entry *Entry) []byte {
+func (f Color) Encode(entry *Entry) []byte {
+	var buf = buffer(buffers.Get().([]byte)[:0]) // получаем и сбрасываем буфер
 	// выводим время
 	if entry.Timestamp.IsZero() {
 		entry.Timestamp = time.Now()
 	}
 
-	buf = append(buf, "\x1b[2m"...)
+	buf.WriteString("\x1b[2m")
 	buf = entry.Timestamp.AppendFormat(buf, "15:04:05.000000")
-	buf = append(buf, "\x1b[0m "...)
+	buf.WriteString("\x1b[0m ")
 	// уровень записи
 	level, ok := f.Levels[entry.Level]
 	if !ok {
@@ -46,59 +48,74 @@ func (f Color) Encode(buf []byte, entry *Entry) []byte {
 		}
 	}
 	if level != "" {
-		buf = append(buf, "\x1b[7m\x1b["...)
+		buf.WriteString("\x1b[7m\x1b[")
 		switch entry.Level & -32 {
 		case FATAL:
-			buf = append(buf, "35"...)
+			buf.WriteString("35")
 		case ERROR:
-			buf = append(buf, "91"...)
+			buf.WriteString("91")
 		case WARN:
-			buf = append(buf, "93"...)
+			buf.WriteString("93")
 		case INFO:
-			buf = append(buf, "92"...)
+			buf.WriteString("92")
 		case DEBUG:
-			buf = append(buf, "94"...)
+			buf.WriteString("94")
 		case TRACE:
-			buf = append(buf, "96"...)
+			buf.WriteString("96")
 		default:
-			buf = append(buf, "37"...)
+			buf.WriteString("37")
 		}
-		buf = append(buf, 'm')
-		buf = append(buf, level...)
-		buf = append(buf, "\x1b[0m "...)
+		buf.WriteByte('m')
+		buf.WriteString(level)
+		buf.WriteString("\x1b[0m ")
 	}
 	// категория
 	if entry.Category != "" {
-		buf = append(buf, "\x1b[2m[\x1b[0m\x1b[92m"...)
-		buf = append(buf, entry.Category...)
-		buf = append(buf, "\x1b[0m\x1b[2m]:\x1b[0m "...)
+		buf.WriteString("\x1b[2m[\x1b[0m\x1b[92m")
+		buf.WriteString(entry.Category)
+		buf.WriteString("\x1b[0m\x1b[2m]:\x1b[0m ")
 	}
 	// основной текст
 	if entry.Message != "" {
-		buf = append(buf, entry.Message...)
+		buf.WriteString(entry.Message)
 	}
 	// дополнительные поля
 	for _, field := range entry.Fields {
-		buf = append(buf, "\n    \x1b[36m"...)
-		buf = append(buf, field.Name...)
-		buf = append(buf, "\x1b[0m"...)
+		buf.WriteString("\n    \x1b[36m")
+		buf.WriteString(field.Name)
+		buf.WriteString("\x1b[0m")
 		for i := 0; i < f.KeyIndent-len(field.Name); i++ {
-			buf = append(buf, ' ')
+			buf.WriteByte(' ')
 		}
-		buf = append(buf, "\x1b[2m=\x1b[0m"...)
+		buf.WriteString("\x1b[2m=\x1b[0m")
 		if f.KeyIndent > 0 {
-			buf = append(buf, ' ')
+			buf.WriteByte(' ')
 		}
 		switch value := field.Value.(type) {
 		case nil:
-			buf = append(buf, "nil"...)
+			buf.WriteString("nil")
 		case string:
-			buf = append(buf, value...)
+			buf.WriteString(value)
 		case error:
-			buf = strconv.AppendQuote(buf, value.Error())
-			buf = append(buf, " \x1b[2m[\x1b[0m\x1b[91m"...)
-			buf = append(buf, reflect.TypeOf(value).String()...)
-			buf = append(buf, "\x1b[0m\x1b[2m]\x1b[0m"...)
+			buf.WriteQuote(value.Error())
+			if value, ok := value.(*errors.Error); ok {
+				if cause := value.Cause(); cause != nil {
+					buf.WriteString(" \x1b[2mcause: \x1b[0m\x1b[91m")
+					fmt.Fprintf(&buf, "%#v", cause)
+					buf.WriteString("\x1b[0m")
+				}
+				for _, src := range value.Stacks() {
+					buf.WriteString("\n\t- ")
+					buf.WriteString(src.Func)
+					buf.WriteString(" \x1b[2m[")
+					buf.WriteString(src.String())
+					buf.WriteString("]\x1b[0m")
+				}
+			} else {
+				buf.WriteString(" \x1b[91m")
+				fmt.Fprintf(&buf, "%#v", value)
+				buf.WriteString("\x1b[0m")
+			}
 		case bool:
 			buf = strconv.AppendBool(buf, value)
 		case int:
@@ -126,34 +143,34 @@ func (f Color) Encode(buf []byte, entry *Entry) []byte {
 		case float64:
 			buf = strconv.AppendFloat(buf, value, 'g', -1, 64)
 		case time.Time:
-			buf = append(buf, '"')
+			buf.WriteByte('"')
 			if !value.IsZero() {
 				buf = value.AppendFormat(buf, "2006-01-02 15:04:05")
 			}
-			buf = append(buf, '"')
+			buf.WriteByte('"')
 		case fmt.Stringer:
-			buf = append(buf, value.String()...)
+			buf.WriteString(value.String())
 		default:
-			buf = append(buf, fmt.Sprint(value)...)
+			buf.WriteString(fmt.Sprint(value))
 		}
 	}
-	// для ошибок выводим стек вызовов
-	if entry.Level >= WARN {
-		if entry.Stack == nil {
-			entry.CallStack(1)
-		}
-		for _, src := range entry.Stack {
-			buf = append(buf, "\n  \x1b[2m- "...)
-			buf = append(buf, src.Pkg...)
-			buf = append(buf, "/\x1b[0m"...)
-			buf = append(buf, src.File...)
-			buf = append(buf, "\x1b[2m:\x1b[0m"...)
-			buf = strconv.AppendInt(buf, int64(src.Line), 10)
-			buf = append(buf, " \x1b[2m(\x1b[0m\x1b[36m"...)
-			buf = append(buf, src.Func...)
-			buf = append(buf, "\x1b[0m\x1b[2m)\x1b[0m"...)
-		}
-	}
-	buf = append(buf, '\n')
+	// // для ошибок выводим стек вызовов
+	// if entry.Level >= WARN {
+	// 	if entry.Stack == nil {
+	// 		entry.CallStack(1)
+	// 	}
+	// 	for _, src := range entry.Stack {
+	// 		buf = append(buf, "\n  \x1b[2m- "...)
+	// 		buf = append(buf, src.Pkg...)
+	// 		buf = append(buf, "/\x1b[0m"...)
+	// 		buf = append(buf, src.File...)
+	// 		buf = append(buf, "\x1b[2m:\x1b[0m"...)
+	// 		buf = strconv.AppendInt(buf, int64(src.Line), 10)
+	// 		buf = append(buf, " \x1b[2m(\x1b[0m\x1b[36m"...)
+	// 		buf = append(buf, src.Func...)
+	// 		buf = append(buf, "\x1b[0m\x1b[2m)\x1b[0m"...)
+	// 	}
+	// }
+	buf.WriteByte('\n')
 	return buf
 }

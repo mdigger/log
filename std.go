@@ -12,6 +12,6 @@ func (w *std) Write(p []byte) (l int, err error) {
 	if l > 0 && p[l-1] == '\n' {
 		p = p[:l-1] // убираем символ перехода на новую строку
 	}
-	err = w.l.h.Write(w.lvl, 3, w.l.name, string(p), w.l.fields)
+	err = w.l.h.Write(w.lvl, w.l.name, string(p), w.l.fields)
 	return
 }

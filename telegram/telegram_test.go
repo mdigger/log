@@ -1,9 +1,9 @@
 package telegram
 
 import (
-	"errors"
 	"testing"
 
+	"github.com/mdigger/errors"
 	"github.com/mdigger/log"
 )
 
@@ -21,6 +21,7 @@ func TestTelegram(t *testing.T) {
 		{"key2", true},
 		{"key3", errors.New("error")},
 		{"key4", []byte{'t', 'e', 's', 't'}},
+		{"key5", errors.New(errors.New("error"))},
 	}); err != nil {
 		t.Fatal(err)
 	}

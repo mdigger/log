@@ -15,7 +15,6 @@ type Template struct {
 // 	Level     string
 // 	Message   string
 // 	Fields    log.Fields
-// 	Stack     []*log.Source
 // 	Header    string
 // 	Footer    string
 func NewTemplate(text, format string) (*Template, error) {
@@ -29,9 +28,7 @@ func NewTemplate(text, format string) (*Template, error) {
 var defaultTemplate = template.Must(template.New("").Parse(
 	`{{if .Header}}{{.Header}}
 {{end}}[<b>{{.Level}}</b>] {{if .Category}}{{.Category}}: {{end}}{{.Message}}
-{{range .Fields}}
-<i>{{.Name}}</i>: {{.Value}}{{end}}{{if .Stack}}
-<pre>{{range $value := .Stack}}- {{$value}}
-{{end}}</pre>{{end}}{{if .Footer}}
-{{.Footer}}
-{{end}}`))
+{{- range .Fields}}
+<i>{{.Name}}:</i>	{{.Value}}{{end}}
+{{- if .Footer}}
+{{.Footer}}{{end}}`))

@@ -7,7 +7,7 @@ import (
 
 // Handler описывает интерфейс для записи лога.
 type Handler interface {
-	Write(lvl Level, calldepth int, category, msg string, fields []Field) error
+	Write(lvl Level, category, msg string, fields []Field) error
 }
 
 // Field описывает дополнительное именованное поле лога.
@@ -48,37 +48,37 @@ func (l *Logger) New(name string, fields ...interface{}) *Logger {
 
 // Log добавляет запись в лог с указанным уровнем.
 func (l *Logger) Log(lvl Level, msg string, fields ...interface{}) {
-	l.h.Write(lvl, 1, l.name, msg, l.with(fields))
+	l.h.Write(lvl, l.name, msg, l.with(fields))
 }
 
 // Trace записывает в лог сообщение с уровнем ниже отладочного.
 func (l *Logger) Trace(msg string, fields ...interface{}) {
-	l.h.Write(TRACE, 1, l.name, msg, l.with(fields))
+	l.h.Write(TRACE, l.name, msg, l.with(fields))
 }
 
 // Debug записывает в лог отладочное сообщение.
 func (l *Logger) Debug(msg string, fields ...interface{}) {
-	l.h.Write(DEBUG, 1, l.name, msg, l.with(fields))
+	l.h.Write(DEBUG, l.name, msg, l.with(fields))
 }
 
 // Info записывает в лог информационное сообщение.
 func (l *Logger) Info(msg string, fields ...interface{}) {
-	l.h.Write(INFO, 1, l.name, msg, l.with(fields))
+	l.h.Write(INFO, l.name, msg, l.with(fields))
 }
 
 // Warn записывает в лог сообщение с предупреждением.
 func (l *Logger) Warn(msg string, fields ...interface{}) {
-	l.h.Write(WARN, 1, l.name, msg, l.with(fields))
+	l.h.Write(WARN, l.name, msg, l.with(fields))
 }
 
 // Error записывает в лог сообщение с ошибкой.
 func (l *Logger) Error(msg string, fields ...interface{}) {
-	l.h.Write(ERROR, 1, l.name, msg, l.with(fields))
+	l.h.Write(ERROR, l.name, msg, l.with(fields))
 }
 
 // Fatal записывает в лог сообщение с критической ошибкой.
 func (l *Logger) Fatal(msg string, fields ...interface{}) {
-	l.h.Write(FATAL, 1, l.name, msg, l.with(fields))
+	l.h.Write(FATAL, l.name, msg, l.with(fields))
 }
 
 // StdLog возвращает обертку лога в стандартный. В качестве параметров

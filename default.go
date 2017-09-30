@@ -64,37 +64,37 @@ func New(name string, fields ...interface{}) *Logger {
 
 // Log выводит сообщение с указанным уровнем в лог по умолчанию.
 func Log(lvl Level, msg string, fields ...interface{}) {
-	h.Write(lvl, 1, "", msg, h.with(fields))
+	h.Write(lvl, "", msg, h.with(fields))
 }
 
 // Trace выводит необязательное отладочное сообщение в лог по умолчанию.
 func Trace(msg string, fields ...interface{}) {
-	h.Write(TRACE, 1, "", msg, h.with(fields))
+	h.Write(TRACE, "", msg, h.with(fields))
 }
 
 // Debug выводит отладочное сообщение в лог по умолчанию.
 func Debug(msg string, fields ...interface{}) {
-	h.Write(DEBUG, 1, "", msg, h.with(fields))
+	h.Write(DEBUG, "", msg, h.with(fields))
 }
 
 // Info выводит информационное сообщение в лог по умолчанию.
 func Info(msg string, fields ...interface{}) {
-	h.Write(INFO, 1, "", msg, h.with(fields))
+	h.Write(INFO, "", msg, h.with(fields))
 }
 
 // Warn выводит сообщение с предупреждением в лог по умолчанию.
 func Warn(msg string, fields ...interface{}) {
-	h.Write(WARN, 1, "", msg, h.with(fields))
+	h.Write(WARN, "", msg, h.with(fields))
 }
 
 // Error выводит сообщение об ошибке в лог по умолчанию.
 func Error(msg string, fields ...interface{}) {
-	h.Write(ERROR, 1, "", msg, h.with(fields))
+	h.Write(ERROR, "", msg, h.with(fields))
 }
 
 // Fatal выводит сообщение о критической ошибке в лог по умолчанию.
 func Fatal(msg string, fields ...interface{}) {
-	h.Write(FATAL, 1, "", msg, h.with(fields))
+	h.Write(FATAL, "", msg, h.with(fields))
 }
 
 // With возвращает новую запись в лог с дополнительными параметрами.

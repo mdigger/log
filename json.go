@@ -12,42 +12,39 @@ import (
 type JSON struct{}
 
 // Encode возвращает представление записи в лог в формате JSON.
-func (f JSON) Encode(buf []byte, entry *Entry) []byte {
-	buf = append(buf, `{"ts":`...)
+func (f JSON) Encode(entry *Entry) []byte {
+	var buf = buffer(buffers.Get().([]byte)[:0]) // получаем и сбрасываем буфер
+	buf.WriteString(`{"ts":`)
 	if entry.Timestamp.IsZero() {
 		entry.Timestamp = time.Now()
 	}
 	buf = strconv.AppendInt(buf, entry.Timestamp.Unix(), 10)
-	buf = append(buf, `,"lvl":`...)
+	buf.WriteString(`,"lvl":`)
 	buf = strconv.AppendInt(buf, int64(entry.Level), 10)
 	if entry.Category != "" {
-		buf = append(buf, `,"log":`...)
-		buf = strconv.AppendQuote(buf, entry.Category)
+		buf.WriteString(`,"log":`)
+		buf.WriteQuote(entry.Category)
 	}
 	if entry.Message != "" {
-		buf = append(buf, `,"msg":`...)
-		buf = strconv.AppendQuote(buf, entry.Message)
+		buf.WriteString(`,"msg":`)
+		buf.WriteQuote(entry.Message)
 	}
 	for _, field := range entry.Fields {
-		buf = append(buf, ',')
-		buf = strconv.AppendQuote(buf, field.Name)
-		buf = append(buf, ':')
+		buf.WriteByte(',')
+		buf.WriteQuote(field.Name)
+		buf.WriteByte(':')
 		switch value := field.Value.(type) {
 		case nil:
-			buf = append(buf, "null"...)
+			buf.WriteString("null")
 		case string:
-			buf = strconv.AppendQuote(buf, value)
+			buf.WriteQuote(value)
 		case []byte:
-			b64 := make([]byte, base64.StdEncoding.EncodedLen(len(value)))
-			base64.StdEncoding.Encode(b64, value)
-			buf = append(buf, '"')
-			buf = append(buf, b64...)
-			buf = append(buf, '"')
+			buf.WriteQuote(base64.StdEncoding.EncodeToString(value))
 		case error:
 			if value == nil {
-				buf = append(buf, "null"...)
+				buf.WriteString("null")
 			} else {
-				buf = strconv.AppendQuote(buf, value.Error())
+				buf.WriteQuote(value.Error())
 			}
 		case bool:
 			buf = strconv.AppendBool(buf, value)
@@ -77,35 +74,35 @@ func (f JSON) Encode(buf []byte, entry *Entry) []byte {
 			buf = strconv.AppendFloat(buf, value, 'g', -1, 64)
 		case time.Time:
 			if value.IsZero() {
-				buf = append(buf, `""`...)
+				buf.WriteString(`""`)
 			} else {
 				buf = value.AppendFormat(buf, time.RFC3339)
 			}
 		case time.Duration:
 			buf = strconv.AppendInt(buf, int64(value), 10)
 		case fmt.Stringer:
-			buf = strconv.AppendQuote(buf, value.String())
+			buf.WriteQuote(value.String())
 		default:
 			if data, err := json.Marshal(value); err == nil {
 				buf = append(buf, data...)
 			} else {
-				buf = strconv.AppendQuote(buf, fmt.Sprint(value))
+				buf.WriteQuote(fmt.Sprint(value))
 			}
 		}
 	}
-	// для предупреждений и ошибок добавляем информацию об исходном файле
-	if entry.Level >= WARN {
-		if src := entry.Source(1); src != nil {
-			buf = append(buf, `,"@src":`...)
-			buf = append(buf, '"')
-			buf = append(buf, src.Pkg...)
-			buf = append(buf, '/')
-			buf = append(buf, src.File...)
-			buf = append(buf, ':')
-			buf = strconv.AppendInt(buf, int64(src.Line), 10)
-			buf = append(buf, '"')
-		}
-	}
-	buf = append(buf, "}\n"...)
+	// // для предупреждений и ошибок добавляем информацию об исходном файле
+	// if entry.Level >= WARN {
+	// 	if src := entry.Source(1); src != nil {
+	// 		buf = append(buf, `,"@src":`...)
+	// 		buf = append(buf, '"')
+	// 		buf = append(buf, src.Pkg...)
+	// 		buf = append(buf, '/')
+	// 		buf = append(buf, src.File...)
+	// 		buf = append(buf, ':')
+	// 		buf = strconv.AppendInt(buf, int64(src.Line), 10)
+	// 		buf = append(buf, '"')
+	// 	}
+	// }
+	buf.WriteString("}\n")
 	return buf
 }

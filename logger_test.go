@@ -1,16 +1,17 @@
 package log
 
 import (
-	"errors"
+	"fmt"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/mdigger/errors"
 )
 
 func TestWriter(t *testing.T) {
 	w := NewWriter(os.Stderr, DEBUG, &Console{
 		TimeFormat: "15:04:05",
-		WithSource: true,
 	})
 	log := w.New("test", "id", 4)
 	log.With("a", "b").Info("info message")
@@ -49,6 +50,14 @@ func TestWriterColor(t *testing.T) {
 	w.Warn("warn")
 	w.Trace("trace")
 	w.Debug("debug")
+}
+
+func TestWriterErrors(t *testing.T) {
+	w := NewWriter(os.Stderr, DEBUG, &Color{KeyIndent: 8})
+	w.Info("info", errors.New("simple error"))
+	err := fmt.Errorf("fmt error")
+	w.Error("error", err)
+	w.Error("error 2", errors.New(err))
 }
 
 // func TestDefault(t *testing.T) {
