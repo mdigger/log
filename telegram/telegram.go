@@ -57,16 +57,18 @@ func (t *Telegram) Write(lvl log.Level, calldepth int, category, msg string, fie
 	for i, field := range fields {
 		if err, ok := field.Value.(error); ok {
 			msg := err.Error()
-			if err, ok := err.(*errors.Error); ok {
+			if err, ok := err.(errors.Causer); ok {
 				if err := err.Cause(); err != nil {
 					msg += "\n\t<i>cause:</i> " + err.Error()
-					msg += fmt.Sprintf("\n\t<code>%#+v</code>", err)
-				}
-				for _, src := range err.Stacks() {
-					msg += "\n\t- " + src.Func + " [" + src.String() + "] "
+					msg += fmt.Sprintf("\n\t<code>%#v</code>", err)
 				}
 			} else {
-				msg += fmt.Sprintf("\n\t<code>%#+[1]v</code>", err)
+				msg += fmt.Sprintf("\n\t<code>%#[1]v</code>", err)
+			}
+			if err, ok := err.(errors.Callers); ok {
+				for _, src := range err.Sources() {
+					msg += "\n\t- " + src.Func + " [" + src.String() + "] "
+				}
 			}
 			field.Value = template.HTML(msg)
 			fields[i] = field
@@ -87,8 +89,8 @@ func (t *Telegram) Write(lvl log.Level, calldepth int, category, msg string, fie
 		return err
 	}
 	entry.Free()
-	// fmt.Println(buf.String())
-	// return nil
+	fmt.Println(buf.String())
+	return nil
 	// отправляем на Telegram
 	return t.Send(buf.String(), t.format)
 }
