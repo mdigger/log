@@ -86,7 +86,7 @@ func (h *Writer) String() string {
 	case *JSON:
 		level += ":JSON"
 	case *Color:
-		level += ":DEV"
+		level += ":COL"
 	case *Console:
 	}
 	h.mu.RUnlock()
@@ -122,8 +122,10 @@ func (h *Writer) Set(opt string) error {
 			h.enc = new(JSON)
 		case "STANDART", "STD", "S", "CONSOLE":
 			h.enc = &Console{TimeFormat: "2006-01-02 15:04:05"}
-		case "COLORS", "COLOR", "DEVELOPERS", "DEVELOPER", "DEVELOP", "DEV", "C":
-			h.enc = &Color{KeyIndent: 8}
+		case "COLORS", "COLOR", "COL", "C":
+			h.enc = new(Color)
+		case "DEVELOPERS", "DEVELOPER", "DEVELOP", "DEV":
+			h.enc = &Color{KeyIndent: 8, NewLine: true}
 		case "":
 		default:
 			if lvl, err := strconv.ParseInt(opt, 10, 8); err == nil {

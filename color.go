@@ -13,6 +13,7 @@ import (
 type Color struct {
 	Levels    map[Level]string // переопределение строк для вывода уровня
 	KeyIndent int              // отступ от значения дополнительного параметра
+	NewLine   bool             // выводить атрибуты с новой строки
 }
 
 // Encode форматирует в буфер запись лога для текстового консольного
@@ -81,7 +82,10 @@ func (f Color) Encode(entry *Entry) []byte {
 	}
 	// дополнительные поля
 	for _, field := range entry.Fields {
-		buf.WriteString("\n    \x1b[36m")
+		if f.NewLine {
+			buf.WriteString("\n   ")
+		}
+		buf.WriteString(" \x1b[36m")
 		buf.WriteString(field.Name)
 		buf.WriteString("\x1b[0m")
 		for i := 0; i < f.KeyIndent-len(field.Name); i++ {

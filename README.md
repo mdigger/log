@@ -16,7 +16,7 @@ import (
 
 func main() {
     log.Info("info message")
-    log.WithField("time", time.Now()).Debug("debug")
+    log.With("time", time.Now()).Debug("debug")
     log.Warn("warn", "time", time.Now(), "state", true)
 }
 ```
