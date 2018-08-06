@@ -1,12 +1,11 @@
 package log
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"testing"
 	"time"
-
-	"github.com/mdigger/errors"
 )
 
 func TestWriter(t *testing.T) {
@@ -21,7 +20,7 @@ func TestWriter(t *testing.T) {
 		"int":   5,
 		"array": []string{"1", "2", "3"},
 		"":      "aga",
-	}, errors.New("error"),
+	},
 		"aaa", "bbb",
 		complex(3, 15), time.Now(),
 	).Info("test message")
@@ -43,7 +42,7 @@ func TestWriterColor(t *testing.T) {
 		"int":   5,
 		"array": []string{"1", "2", "3"},
 		"":      "aga",
-	}, errors.New("error"),
+	},
 		"aaa", "bbb",
 		complex(3, 15), time.Now(),
 	).Error("test message")
@@ -57,7 +56,7 @@ func TestWriterErrors(t *testing.T) {
 	w.Info("info", errors.New("simple error"))
 	err := fmt.Errorf("fmt error")
 	w.Error("error", err)
-	w.Error("error 2", errors.New(err))
+	w.Error("error 2", errors.New(err.Error()))
 }
 
 // func TestDefault(t *testing.T) {
