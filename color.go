@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"time"
-
-	"github.com/mdigger/errors"
 )
 
 // Color выводит лог в более удобном для чтения в консоли виде, используя
@@ -102,26 +100,6 @@ func (f Color) Encode(entry *Entry) []byte {
 			buf.WriteString(value)
 		case error:
 			buf.WriteQuote(value.Error())
-			if err, ok := value.(errors.Causer); ok {
-				if cause := err.Cause(); cause != nil {
-					buf.WriteString(" \x1b[2mcause: \x1b[0m\x1b[91m")
-					fmt.Fprintf(&buf, "%#v", cause)
-					buf.WriteString("\x1b[0m")
-				}
-			} else {
-				buf.WriteString(" \x1b[91m")
-				fmt.Fprintf(&buf, "%#v", value)
-				buf.WriteString("\x1b[0m")
-			}
-			if err, ok := value.(errors.Callers); ok {
-				for _, src := range err.Sources() {
-					buf.WriteString("\n\t- ")
-					buf.WriteString(src.Func)
-					buf.WriteString(" \x1b[2m[")
-					buf.WriteString(src.String())
-					buf.WriteString("]\x1b[0m")
-				}
-			}
 		case bool:
 			buf = strconv.AppendBool(buf, value)
 		case int:
