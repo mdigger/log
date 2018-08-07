@@ -97,42 +97,43 @@ func (h *Writer) String() string {
 func (h *Writer) Set(opt string) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	for _, opt := range strings.FieldsFunc(opt, func(c rune) bool {
-		return map[rune]bool{
-			' ': true, '\t': true, ';': true, ',': true, ':': true}[c]
-	}) {
-		switch strings.ToUpper(opt) {
-		case "ALL", "A", "*":
+	for _, opt := range strings.Split(opt, ",") {
+		switch opt := strings.ToLower(opt); opt {
+		case "all", "a", "*":
 			h.lvl = -128
-		case "TRACE", "TRC", "T":
+		case "trace", "trc", "t":
 			h.lvl = TRACE
-		case "DEBUG", "DBG", "D":
+		case "debug", "dbg", "d":
 			h.lvl = DEBUG
-		case "INFO", "INF", "I":
+		case "info", "inf", "i":
 			h.lvl = INFO
-		case "WARNING", "WARN", "WRN", "W":
+		case "warning", "warn", "wrn", "w":
 			h.lvl = WARN
-		case "ERROR", "ERR", "E":
+		case "error", "err", "r":
 			h.lvl = ERROR
-		case "FATAL", "FTL", "F":
+		case "fatal", "ftl", "f":
 			h.lvl = FATAL
-		case "NONE", "NO", "N", "OFF", "FALSE":
+		case "none", "no", "n", "off", "false":
 			h.lvl = 127
-		case "JSON", "JSN", "J":
+		case "json", "jsn", "j":
 			h.enc = new(JSON)
-		case "STANDART", "STD", "S", "CONSOLE":
+		case "standart", "std", "s", "console":
 			h.enc = &Console{TimeFormat: "2006-01-02 15:04:05"}
-		case "COLORS", "COLOR", "COL", "C":
+		case "colors", "color", "col", "c":
 			h.enc = new(Color)
-		case "DEVELOPERS", "DEVELOPER", "DEVELOP", "DEV":
+		case "developers", "developer", "develop", "dev":
 			h.enc = &Color{KeyIndent: 8, NewLine: true}
 		case "":
 		default:
-			if lvl, err := strconv.ParseInt(opt, 10, 8); err == nil {
+			if strings.HasPrefix(opt, "time=") {
+				if enc, ok := h.enc.(*Console); ok {
+					enc.TimeFormat = opt[5:]
+				}
+			} else if lvl, err := strconv.ParseInt(opt, 10, 8); err == nil {
 				h.lvl = Level(lvl)
-				continue
+			} else {
+				return fmt.Errorf("unknown log format %q", opt)
 			}
-			return fmt.Errorf("unknown log format %q", opt)
 		}
 	}
 	return nil
