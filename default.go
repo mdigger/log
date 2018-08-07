@@ -15,7 +15,7 @@ func init() {
 }
 
 // default используется как лог по умолчанию.
-var h = &Writer{w: os.Stderr, lvl: DEBUG, enc: &Console{
+var h = &Writer{w: os.Stderr, lvl: INFO, enc: &Console{
 	TimeFormat: "2006-01-02 15:04:05",
 }}
 
